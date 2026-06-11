@@ -136,6 +136,52 @@
   .player .avatar { font-size: 1.3rem; }
   .player .you { color: var(--muted); font-size: .75rem; font-weight: 400; }
 
+  /* ---------- duelo ---------- */
+  .duelscore {
+    display: flex; justify-content: center; align-items: center; gap: 14px;
+    background: var(--card); border-radius: var(--radius); padding: 12px;
+    margin-bottom: 14px; font-size: 1rem;
+  }
+  .duelscore b { color: var(--gold); font-size: 1.3rem; }
+  .duelscore .vs { color: var(--muted); font-size: .8rem; }
+  .qmeta { text-align: center; color: var(--muted); font-size: .8rem; margin-bottom: 8px; }
+  .qcard {
+    background: var(--card); border-radius: var(--radius); padding: 18px 16px;
+    font-size: 1.1rem; font-weight: 600; text-align: center; margin-bottom: 12px;
+  }
+  .qopts { display: grid; gap: 8px; }
+  .qopts button {
+    background: var(--card); color: var(--text); border: 2px solid var(--card2);
+    border-radius: var(--radius); padding: 14px 12px; font-size: .95rem;
+    font-weight: 600; cursor: pointer; text-align: left;
+  }
+  .qopts button .cnt { float: right; color: var(--muted); font-weight: 700; }
+  .qopts button.mine { border-color: var(--accent); background: #2d2250; }
+  .qopts button.correct { border-color: var(--green); background: #14352a; }
+  .qopts button.wrongpick { border-color: var(--red); }
+  .qopts button:disabled { cursor: default; opacity: 1; }
+  .qresult {
+    background: var(--card2); border-radius: var(--radius); padding: 12px 14px;
+    margin-top: 12px; font-size: .9rem; line-height: 1.6;
+  }
+  .qhint { text-align: center; color: var(--muted); font-size: .8rem; margin-top: 10px; }
+  .finalbox { text-align: center; padding: 20px 10px; }
+  .finalscore { font-size: 1.6rem; font-weight: 800; margin-bottom: 12px; }
+  .finalverdict { font-size: 1.05rem; line-height: 1.5; }
+  .duelmc {
+    margin-top: 16px; background: var(--card); border: 1px dashed var(--gold);
+    border-radius: var(--radius); padding: 14px; display: flex;
+    flex-direction: column; gap: 10px;
+  }
+  .duelmc .mctitle { font-size: .8rem; color: var(--gold); font-weight: 700; }
+  .duelmc select {
+    background: var(--card2); color: var(--text); border: none;
+    border-radius: 8px; padding: 10px; font-size: .9rem; width: 100%;
+  }
+  .duelmc .mcbtns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .duelmc .mcbtns .smallbtn { flex: 1; padding: 11px 8px; }
+  .duelmc .mcinfo { font-size: .82rem; color: var(--muted); }
+
   /* ---------- MC add forms ---------- */
   .addform { display: flex; gap: 8px; margin: 14px 0 4px; }
   .addform input {
@@ -216,6 +262,7 @@
 <nav>
   <button id="tabMarcador" class="active">🏆 Marcador</button>
   <button id="tabPruebas">🎯 Pruebas</button>
+  <button id="tabDuelo">🧠 Duelo</button>
 </nav>
 
 <main>
@@ -243,6 +290,28 @@
       <input class="pts" id="newRetoPts" type="number" inputmode="numeric" placeholder="pts" value="5" min="0" max="999">
       <button id="addRetoBtn">+</button>
     </div>
+  </section>
+
+  <!-- ===== DUELO ===== -->
+  <section id="viewDuelo" class="view">
+    <div class="duelscore" id="duelScore" style="display:none">
+      <span class="side">🧠 La Masa <b id="scoreMasa">0</b></span>
+      <span class="vs">vs</span>
+      <span class="side"><b id="scoreBogu">0</b> Bogu 👑</span>
+    </div>
+    <div id="duelIdle" class="empty">El duelo aún no ha empezado.<br>🧠 La Masa contra Bogu 👑 — ¿puede la mente colmena vencer al experto?</div>
+    <div id="duelQuestion" style="display:none">
+      <div class="qmeta" id="qMeta"></div>
+      <div class="qcard" id="qText"></div>
+      <div class="qopts" id="qOpts"></div>
+      <div class="qresult" id="qResult" style="display:none"></div>
+      <div class="qhint" id="qHint"></div>
+    </div>
+    <div id="duelFinished" style="display:none" class="finalbox">
+      <div class="finalscore" id="finalScore"></div>
+      <div class="finalverdict" id="finalVerdict"></div>
+    </div>
+    <div id="duelMc" class="duelmc" style="display:none"></div>
   </section>
 
   <button class="mclink" id="mcLink">¿Eres el MC?</button>
@@ -306,8 +375,23 @@ const AVATARS = [
   "🥸", "🤪", "🤨", "😏", "🥴", "😵‍💫", "🤤", "😬", "🫠", "🤓", "👴", // caretos
 ];
 
+/* Banco de preguntas del Duelo — edítalas a tu gusto (correct = índice 0-3) */
+const QUIZ_BANK = [
+  { text: "¿En qué año cayó el Imperio Romano de Occidente?", options: ["410", "476", "519", "533"], correct: 1 },
+  { text: "¿Qué elemento químico tiene el símbolo Sn?", options: ["Selenio", "Sodio", "Estaño", "Silicio"], correct: 2 },
+  { text: "¿Quién pintó «El jardín de las delicias»?", options: ["Brueghel el Viejo", "El Bosco", "Goya", "Velázquez"], correct: 1 },
+  { text: "¿Cuál es el río más largo de la Península Ibérica?", options: ["Ebro", "Duero", "Tajo", "Guadiana"], correct: 2 },
+  { text: "¿Cuántas lunas tiene Marte?", options: ["0", "1", "2", "4"], correct: 2 },
+  { text: "¿Qué país ganó el primer Mundial de fútbol (1930)?", options: ["Brasil", "Uruguay", "Argentina", "Italia"], correct: 1 },
+  { text: "¿Cuál es la capital de Australia?", options: ["Sídney", "Melbourne", "Canberra", "Perth"], correct: 2 },
+  { text: "¿Qué dramaturgo inglés murió en la misma fecha que Cervantes?", options: ["Marlowe", "Shakespeare", "Ben Jonson", "John Donne"], correct: 1 },
+  { text: "¿Cuántos huesos tiene el cuerpo humano adulto?", options: ["186", "206", "226", "246"], correct: 1 },
+  { text: "¿En qué ciudad nació Picasso?", options: ["Barcelona", "Madrid", "Málaga", "Sevilla"], correct: 2 },
+];
+
 /* ===================== estado ===================== */
 let state = { updatedAt: 0, players: [], retos: [] };
+let quiz = { status: "idle", qIndex: 0, boguId: "", answers: {}, score: { masa: 0, bogu: 0 }, lastResult: null };
 let mcMode = localStorage.getItem("mcMode") === "1";
 let myPlayerId = localStorage.getItem("myPlayerId") || "";
 let dirty = false;          // cambios locales sin publicar
@@ -326,6 +410,18 @@ function normalize(raw) {
   };
 }
 
+function normalizeQuiz(raw) {
+  raw = raw || {};
+  return {
+    status: raw.status || "idle",
+    qIndex: raw.qIndex || 0,
+    boguId: raw.boguId || "",
+    answers: raw.answers || {},
+    score: raw.score || { masa: 0, bogu: 0 },
+    lastResult: raw.lastResult || null,
+  };
+}
+
 /* ===================== red (REST, sin SDK) ===================== */
 const dbBase = () => FIREBASE_DB_URL.replace(/\/+$/, "");
 const dbUrl = () => dbBase() + "/state.json";
@@ -339,11 +435,15 @@ async function fetchRemote() {
 async function pull({ manual = false } = {}) {
   if (!FIREBASE_DB_URL) return;
   try {
-    const remote = await fetchRemote();
+    const res = await fetch(dbBase() + "/.json", { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const root = (await res.json()) || {};
+    const remote = normalize(root.state);
+    quiz = normalizeQuiz(root.quiz);   // el duelo se sincroniza siempre, no pasa por Publicar
     setOnline(true);
     if (dirty) {
       // no machacar ediciones locales del MC; solo recordar qué hay fuera
-      lastSyncedAt = Math.max(lastSyncedAt, 0); // se comprueba al publicar
+      renderDuelo();
       if (manual) toast("Tienes cambios sin publicar — no se ha sobrescrito");
       return;
     }
@@ -424,6 +524,7 @@ function render() {
   $("updatedAt").textContent = fmtTime(state.updatedAt);
   renderPlayers();
   renderRetos();
+  renderDuelo();
   renderMc();
   updatePubbar();
 }
@@ -560,6 +661,222 @@ function renderRetos() {
     }
     list.appendChild(li);
   });
+}
+
+/* ===================== duelo: La Masa vs Bogu ===================== */
+const qzUrl = (path) => dbBase() + "/quiz" + path + ".json";
+
+async function qzWrite(path, value, method = "PUT") {
+  const res = await fetch(qzUrl(path), {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(value),
+  });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+}
+
+function boguPlayer() { return state.players.find(p => p.id === quiz.boguId); }
+function curAnswers() { return quiz.answers[quiz.qIndex] || {}; }
+
+function renderDuelo() {
+  const q = QUIZ_BANK[quiz.qIndex];
+  const showQ = (quiz.status === "open" || quiz.status === "revealed") && q;
+  $("duelScore").style.display = quiz.status === "idle" ? "none" : "flex";
+  $("duelIdle").style.display = quiz.status === "idle" ? "block" : "none";
+  $("duelQuestion").style.display = showQ ? "block" : "none";
+  $("duelFinished").style.display = quiz.status === "finished" ? "block" : "none";
+  $("scoreMasa").textContent = quiz.score.masa;
+  $("scoreBogu").textContent = quiz.score.bogu;
+
+  if (showQ) {
+    const bogu = boguPlayer();
+    const ans = curAnswers();
+    const mine = ans[myPlayerId];
+    const revealed = quiz.status === "revealed";
+    const r = quiz.lastResult;
+    $("qMeta").textContent = `Pregunta ${quiz.qIndex + 1} de ${QUIZ_BANK.length}`;
+    $("qText").textContent = q.text;
+    const opts = $("qOpts");
+    opts.innerHTML = "";
+    q.options.forEach((opt, i) => {
+      const b = document.createElement("button");
+      b.textContent = ["A", "B", "C", "D"][i] + ") " + opt;
+      if (mine === i) b.classList.add("mine");
+      if (revealed && r) {
+        b.disabled = true;
+        if (i === q.correct) b.classList.add("correct");
+        else if (mine === i) b.classList.add("wrongpick");
+        const masaCnt = r.counts ? (r.counts[i] || 0) : 0;
+        const marks = [];
+        if (masaCnt) marks.push("🧠 " + masaCnt);
+        if (r.boguChoice === i) marks.push("👑");
+        if (marks.length) {
+          const c = document.createElement("span");
+          c.className = "cnt";
+          c.textContent = marks.join(" ");
+          b.appendChild(c);
+        }
+      } else {
+        b.disabled = !myPlayerId;
+        b.onclick = () => answer(i);
+      }
+      opts.appendChild(b);
+    });
+
+    const hint = $("qHint");
+    if (revealed && r) {
+      $("qResult").style.display = "block";
+      const boguName = bogu ? bogu.name : "Bogu";
+      const lines = [];
+      lines.push(r.masaChoice < 0
+        ? "🧠 La Masa no se ha puesto de acuerdo (empate) — el caos no puntúa."
+        : `🧠 La Masa ha dicho «${q.options[r.masaChoice]}» — ${r.masaPoint ? "✅ ¡acierta! +1" : "❌ falla"}`);
+      lines.push(r.boguChoice == null
+        ? `👑 ${boguName} no ha respondido.`
+        : `👑 ${boguName} ha dicho «${q.options[r.boguChoice]}» — ${r.boguPoint ? "✅ ¡acierta! +1" : "❌ falla"}`);
+      $("qResult").innerHTML = lines.map(l => "<div>" + l + "</div>").join("");
+      hint.textContent = "";
+    } else {
+      $("qResult").style.display = "none";
+      if (!myPlayerId) hint.textContent = "Únete al marcador para poder responder 🙋";
+      else if (myPlayerId === quiz.boguId) hint.textContent = "👑 Tú eres Bogu — tu respuesta cuenta sola contra todos.";
+      else hint.textContent = mine != null ? "Respuesta enviada — puedes cambiarla hasta que el MC la cierre." : "Toca tu respuesta 👆";
+    }
+  }
+
+  if (quiz.status === "finished") {
+    const { masa, bogu } = quiz.score;
+    const name = boguPlayer() ? boguPlayer().name : "Bogu";
+    $("finalScore").textContent = `🧠 ${masa} — ${bogu} 👑`;
+    $("finalVerdict").textContent =
+      masa > bogu ? `¡LA MASA HA DERROTADO A ${name.toUpperCase()}! 🍻 La mente colmena es más sabia. ¡Chupito para el novio!`
+      : bogu > masa ? `${name} sigue siendo el rey 👑 La Masa paga sus chupitos.`
+      : "Empate técnico… eso se resuelve con una pregunta de desempate (o con chupitos para todos).";
+  }
+
+  renderDueloMc();
+}
+
+function renderDueloMc() {
+  const box = $("duelMc");
+  box.style.display = mcMode ? "flex" : "none";
+  if (!mcMode) return;
+  box.innerHTML = "<div class='mctitle'>🎤 CONTROLES DEL MC</div>";
+
+  const info = document.createElement("div");
+  info.className = "mcinfo";
+  const btns = document.createElement("div");
+  btns.className = "mcbtns";
+
+  const addBtn = (label, cls, fn) => {
+    const b = document.createElement("button");
+    b.className = "smallbtn " + cls;
+    b.textContent = label;
+    b.onclick = fn;
+    btns.appendChild(b);
+  };
+
+  if (quiz.status === "idle") {
+    const sel = document.createElement("select");
+    sel.id = "boguSel";
+    const o0 = document.createElement("option");
+    o0.value = ""; o0.textContent = "¿Quién es Bogu? 👑";
+    sel.appendChild(o0);
+    state.players.forEach(p => {
+      const o = document.createElement("option");
+      o.value = p.id; o.textContent = (p.avatar || "🙂") + " " + p.name;
+      if (p.id === quiz.boguId) o.selected = true;
+      sel.appendChild(o);
+    });
+    box.appendChild(sel);
+    info.textContent = `${QUIZ_BANK.length} preguntas cargadas. Marca quién es Bogu y dale caña.`;
+    addBtn("▶ Empezar duelo", "green", async () => {
+      const boguId = $("boguSel").value;
+      if (!boguId) { toast("Marca quién es Bogu 👑"); return; }
+      await qzAction({ status: "open", qIndex: 0, boguId, answers: null, score: { masa: 0, bogu: 0 }, lastResult: null }, "PUT", "");
+    });
+  }
+
+  if (quiz.status === "open") {
+    const ans = curAnswers();
+    const total = state.players.length;
+    const respondidos = state.players.filter(p => ans[p.id] != null).length;
+    info.textContent = `${respondidos}/${total} han respondido.`;
+    addBtn("👁 Revelar respuesta", "", reveal);
+  }
+
+  if (quiz.status === "revealed") {
+    const last = quiz.qIndex >= QUIZ_BANK.length - 1;
+    info.textContent = last ? "Era la última pregunta." : "Cuando estés listo, siguiente.";
+    if (!last) addBtn("⏭ Siguiente pregunta", "green", () =>
+      qzAction({ status: "open", qIndex: quiz.qIndex + 1, lastResult: null }, "PATCH", ""));
+    addBtn("🏁 Terminar duelo", last ? "green" : "gray", () =>
+      qzAction({ status: "finished" }, "PATCH", ""));
+  }
+
+  if (quiz.status === "finished") {
+    info.textContent = "Duelo terminado.";
+  }
+
+  if (quiz.status !== "idle") {
+    addBtn("⟲ Reiniciar duelo", "gray", async () => {
+      if (!confirm("¿Borrar el duelo entero (marcador y respuestas)?")) return;
+      await qzAction({ status: "idle" }, "PUT", "");
+    });
+  }
+
+  box.appendChild(info);
+  box.appendChild(btns);
+}
+
+async function qzAction(value, method, path) {
+  try {
+    await qzWrite(path, value, method);
+    await pull();
+  } catch (e) {
+    setOnline(false);
+    toast("Sin conexión — reintenta");
+  }
+}
+
+async function answer(i) {
+  if (!myPlayerId || quiz.status !== "open") return;
+  const prevAns = quiz.answers[quiz.qIndex] || {};
+  quiz.answers[quiz.qIndex] = { ...prevAns, [myPlayerId]: i }; // pintar al instante
+  renderDuelo();
+  try {
+    await qzWrite(`/answers/${quiz.qIndex}/${myPlayerId}`, i);
+  } catch (e) {
+    toast("No se ha podido enviar — toca otra vez");
+  }
+}
+
+async function reveal() {
+  const q = QUIZ_BANK[quiz.qIndex];
+  // traer las respuestas de última hora antes de cerrar
+  try {
+    const res = await fetch(qzUrl(`/answers/${quiz.qIndex}`), { cache: "no-store" });
+    if (res.ok) {
+      const fresh = await res.json();
+      if (fresh) quiz.answers[quiz.qIndex] = fresh;
+    }
+  } catch (_) {}
+  const ans = curAnswers();
+  const counts = q.options.map(() => 0);
+  state.players.forEach(p => {
+    if (p.id !== quiz.boguId && ans[p.id] != null && counts[ans[p.id]] != null) counts[ans[p.id]]++;
+  });
+  const max = Math.max(...counts);
+  const tops = counts.map((c, i) => [c, i]).filter(([c]) => c === max && c > 0).map(([, i]) => i);
+  const masaChoice = tops.length === 1 ? tops[0] : -1;   // empate o nadie = la Masa falla
+  const boguChoice = ans[quiz.boguId] != null ? ans[quiz.boguId] : null;
+  const masaPoint = masaChoice === q.correct;
+  const boguPoint = boguChoice === q.correct;
+  await qzAction({
+    status: "revealed",
+    score: { masa: quiz.score.masa + (masaPoint ? 1 : 0), bogu: quiz.score.bogu + (boguPoint ? 1 : 0) },
+    lastResult: { counts, masaChoice, boguChoice, masaPoint, boguPoint },
+  }, "PATCH", "");
 }
 
 /* ===================== modo MC ===================== */
@@ -700,13 +1017,14 @@ $("newRetoTitle").addEventListener("keydown", e => { if (e.key === "Enter") $("a
 
 /* ===================== tabs / botones ===================== */
 function showTab(name) {
-  $("tabMarcador").classList.toggle("active", name === "marcador");
-  $("tabPruebas").classList.toggle("active", name === "pruebas");
-  $("viewMarcador").classList.toggle("active", name === "marcador");
-  $("viewPruebas").classList.toggle("active", name === "pruebas");
+  ["Marcador", "Pruebas", "Duelo"].forEach(t => {
+    $("tab" + t).classList.toggle("active", name === t);
+    $("view" + t).classList.toggle("active", name === t);
+  });
 }
-$("tabMarcador").onclick = () => showTab("marcador");
-$("tabPruebas").onclick = () => showTab("pruebas");
+$("tabMarcador").onclick = () => showTab("Marcador");
+$("tabPruebas").onclick = () => showTab("Pruebas");
+$("tabDuelo").onclick = () => showTab("Duelo");
 $("refreshBtn").onclick = () => pull({ manual: true });
 $("publishBtn").onclick = publish;
 
@@ -731,7 +1049,13 @@ if (!FIREBASE_DB_URL) {
 }
 render();
 pull();
-setInterval(pull, POLL_MS);
+// con una pregunta abierta el sondeo se acelera para que el duelo vaya fluido
+(function schedulePoll() {
+  setTimeout(async () => {
+    await pull();
+    schedulePoll();
+  }, quiz.status === "open" || quiz.status === "revealed" ? 3000 : POLL_MS);
+})();
 </script>
 </body>
 </html>
