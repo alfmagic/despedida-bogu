@@ -106,6 +106,11 @@
     border-radius: 8px; padding: 3px 9px; font-size: .85rem; white-space: nowrap;
   }
   .reto .doneby { font-size: .78rem; color: var(--green); margin-top: 5px; }
+  .reto .playbtn {
+    display: block; margin-top: 10px; background: var(--accent); color: #fff;
+    text-decoration: none; text-align: center; border-radius: 8px;
+    padding: 9px; font-weight: 700; font-size: .9rem;
+  }
   .reto .mcrow { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
   .reto select {
     flex: 1; background: var(--card2); color: var(--text); border: none;
@@ -286,9 +291,12 @@
     <ul id="retoList"></ul>
     <div id="retosEmpty" class="empty">Aún no hay pruebas.<br>Que tiemble el novio… 😈</div>
     <div class="addform" id="addRetoForm" style="display:none">
-      <input class="grow" id="newRetoTitle" placeholder="Nueva prueba" maxlength="80">
+      <input class="grow" id="newRetoTitle" placeholder="Nueva prueba o juego" maxlength="80">
       <input class="pts" id="newRetoPts" type="number" inputmode="numeric" placeholder="pts" value="5" min="0" max="999">
       <button id="addRetoBtn">+</button>
+    </div>
+    <div class="addform" id="addRetoLinkRow" style="display:none;margin-top:6px">
+      <input class="grow" id="newRetoUrl" type="url" placeholder="🔗 Enlace al juego (opcional)">
     </div>
   </section>
 
@@ -609,6 +617,15 @@ function renderRetos() {
       by.textContent = "Conseguida por " + r.doneBy;
       li.appendChild(by);
     }
+    if (r.url && !r.done) {
+      const a = document.createElement("a");
+      a.className = "playbtn";
+      a.href = r.url;
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.textContent = "Jugar ▶";
+      li.appendChild(a);
+    }
     if (mcMode) {
       const row = document.createElement("div");
       row.className = "mcrow";
@@ -884,6 +901,7 @@ function renderMc() {
   $("mcBadge").style.display = mcMode ? "inline-block" : "none";
   $("addPlayerForm").style.display = mcMode ? "flex" : "none";
   $("addRetoForm").style.display = mcMode ? "flex" : "none";
+  $("addRetoLinkRow").style.display = mcMode ? "flex" : "none";
   $("pubbar").classList.toggle("show", mcMode);
   $("mcLink").textContent = mcMode ? "Salir del modo MC" : "¿Eres el MC?";
   $("joinBtn").style.display = (!myPlayerId && !mcMode) ? "block" : "none";
@@ -1008,9 +1026,12 @@ $("newPlayerName").addEventListener("keydown", e => { if (e.key === "Enter") $("
 $("addRetoBtn").onclick = () => {
   const title = $("newRetoTitle").value.trim();
   const points = Math.max(0, parseInt($("newRetoPts").value, 10) || 0);
+  let url = $("newRetoUrl").value.trim();
+  if (url && !/^https?:\/\//i.test(url)) url = "https://" + url;
   if (!title) return;
-  state.retos.push({ id: uid(), title, points, done: false, doneBy: "" });
+  state.retos.push({ id: uid(), title, points, done: false, doneBy: "", url });
   $("newRetoTitle").value = "";
+  $("newRetoUrl").value = "";
   markDirty();
 };
 $("newRetoTitle").addEventListener("keydown", e => { if (e.key === "Enter") $("addRetoBtn").click(); });
