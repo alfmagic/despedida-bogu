@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Despedida de Bogu 🎉</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   :root {
     --bg: #14101f;
@@ -59,7 +60,8 @@
   }
   nav button {
     flex: 1; padding: 12px 0; background: none; border: none;
-    color: var(--muted); font-size: .95rem; font-weight: 600; cursor: pointer;
+    color: var(--muted); font-size: .82rem; font-weight: 600; cursor: pointer;
+    white-space: nowrap;
   }
   nav button.active { background: var(--accent); color: #fff; }
 
@@ -194,6 +196,29 @@
   .duelmc .mcbtns .smallbtn { flex: 1; padding: 11px 8px; }
   .duelmc .mcinfo { font-size: .82rem; color: var(--muted); }
 
+  /* ---------- geobogu ---------- */
+  #geoMap {
+    height: 46vh; min-height: 260px; border-radius: var(--radius);
+    margin-top: 10px; background: var(--card2);
+  }
+  .geostatus { text-align: center; color: var(--muted); font-size: .82rem; margin-top: 8px; min-height: 1.2em; }
+  .geostatus.ok { color: var(--green); font-weight: 600; }
+  .georesults { margin-top: 12px; }
+  .georesults .grow {
+    display: flex; align-items: center; gap: 10px; background: var(--card);
+    border-radius: 10px; padding: 9px 12px; margin-bottom: 6px; font-size: .9rem;
+  }
+  .georesults .grow .gname { flex: 1; font-weight: 600; }
+  .georesults .grow .gdist { color: var(--muted); }
+  .georesults .grow .gpts { color: var(--gold); font-weight: 800; min-width: 36px; text-align: right; }
+  .geototals {
+    display: flex; justify-content: center; gap: 14px; flex-wrap: wrap;
+    background: var(--card); border-radius: var(--radius); padding: 10px;
+    margin-bottom: 12px; font-size: .85rem;
+  }
+  .geototals b { color: var(--gold); }
+  .pinemoji { font-size: 1.6rem; line-height: 1; filter: drop-shadow(0 1px 2px #000); }
+
   /* ---------- MC add forms ---------- */
   .addform { display: flex; gap: 8px; margin: 14px 0 4px; }
   .addform input {
@@ -275,6 +300,7 @@
   <button id="tabMarcador" class="active">🏆 Marcador</button>
   <button id="tabPruebas">🎯 Pruebas</button>
   <button id="tabDuelo">🧠 Duelo</button>
+  <button id="tabGeo">📍 GeoBogu</button>
 </nav>
 
 <main>
@@ -329,6 +355,24 @@
     <div id="duelMc" class="duelmc" style="display:none"></div>
   </section>
 
+  <!-- ===== GEOBOGU ===== -->
+  <section id="viewGeo" class="view">
+    <div class="geototals" id="geoTotals" style="display:none"></div>
+    <div id="geoIdle" class="empty">📍 GeoBogu aún no ha empezado.<br>Lugares de la vida de Bogu — deja tu pin lo más cerca posible.</div>
+    <div id="geoQuestion" style="display:none">
+      <div class="qmeta" id="geoMeta"></div>
+      <div class="qcard" id="geoText"></div>
+      <div id="geoMap"></div>
+      <div class="geostatus" id="geoStatus"></div>
+      <div class="georesults" id="geoResults"></div>
+    </div>
+    <div id="geoFinished" style="display:none" class="finalbox">
+      <div class="finalscore">📍 GeoBogu</div>
+      <div class="finalverdict" id="geoFinal"></div>
+    </div>
+    <div id="geoMc" class="duelmc" style="display:none"></div>
+  </section>
+
   <button class="mclink" id="mcLink">¿Eres el MC?</button>
 </main>
 
@@ -377,6 +421,7 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 /* =====================================================================
    CONFIGURACIÓN — la única línea que hay que tocar
@@ -424,9 +469,21 @@ const QUIZ_BANK = [
   { text: "¿En qué año cayó Tenochtitlan ante Hernán Cortés?", options: ["1492", "1519", "1521", "1531"], correct: 2 },
 ];
 
+/* Rondas de GeoBogu — lugares de la vida de Bogu (lat/lng exactos) */
+const GEO_BANK = [
+  { text: "🏠 La primera casa de Bogu", lat: 41.3919, lng: 2.1145, label: "Molins de Rubió i Tudurí 16, Pedralbes (BCN)" },
+  { text: "👵 La casa de la yaya donde vivió Bogu", lat: 41.39751, lng: 2.13409, label: "Alt de Gironella 71, Barcelona" },
+  { text: "🔑 El piso actual de Bogu", lat: 41.40467, lng: 2.13847, label: "Sant Gervasi de Cassoles 39, Barcelona" },
+  { text: "🥃 Donde Bogu se metió 9 chupitos seguidos", lat: 38.8893, lng: 1.4055, label: "Apartamentos Jet, Platja d'en Bossa, Ibiza" },
+  { text: "🏖️ La casa de la yaya de los veranos", lat: 41.18941, lng: 1.56962, label: "Carrer Pescador, Calafell (Tarragona)" },
+  { text: "☀️ El otro veraneo de Bogu", lat: 36.45949, lng: -5.04551, label: "Costalita, Estepona (Málaga)" },
+];
+const GEO_PTS = [5, 3, 1]; // puntos para los 3 pins más cercanos
+
 /* ===================== estado ===================== */
 let state = { updatedAt: 0, players: [], retos: [] };
 let quiz = { status: "idle", qIndex: 0, boguId: "", answers: {}, score: { masa: 0, bogu: 0 }, lastResult: null };
+let geo = { status: "idle", qIndex: 0, answers: {}, totals: {}, lastResult: null };
 let mcMode = localStorage.getItem("mcMode") === "1";
 let myPlayerId = localStorage.getItem("myPlayerId") || "";
 let dirty = false;          // cambios locales sin publicar
@@ -469,6 +526,17 @@ function normalizeQuiz(raw) {
   };
 }
 
+function normalizeGeo(raw) {
+  raw = raw || {};
+  return {
+    status: raw.status || "idle",
+    qIndex: raw.qIndex || 0,
+    answers: raw.answers || {},
+    totals: raw.totals || {},
+    lastResult: raw.lastResult || null,
+  };
+}
+
 /* ===================== red (REST, sin SDK) ===================== */
 const dbBase = () => FIREBASE_DB_URL.replace(/\/+$/, "");
 const dbUrl = () => dbBase() + "/state.json";
@@ -486,11 +554,13 @@ async function pull({ manual = false } = {}) {
     if (!res.ok) throw new Error("HTTP " + res.status);
     const root = (await res.json()) || {};
     const remote = normalize(root.state);
-    quiz = normalizeQuiz(root.quiz);   // el duelo se sincroniza siempre, no pasa por Publicar
+    quiz = normalizeQuiz(root.quiz);   // duelo y geo se sincronizan siempre, no pasan por Publicar
+    geo = normalizeGeo(root.geo);
     setOnline(true);
     if (dirty) {
       // no machacar ediciones locales del MC; solo recordar qué hay fuera
       renderDuelo();
+      renderGeo();
       if (manual) toast("Tienes cambios sin publicar — no se ha sobrescrito");
       return;
     }
@@ -572,6 +642,7 @@ function render() {
   renderPlayers();
   renderRetos();
   renderDuelo();
+  renderGeo();
   renderMc();
   updatePubbar();
 }
@@ -948,6 +1019,235 @@ async function reveal() {
   }, "PATCH", "");
 }
 
+/* ===================== GeoBogu ===================== */
+const geoUrl = (path) => dbBase() + "/geo" + path + ".json";
+
+async function geoWrite(path, value, method = "PUT") {
+  const res = await fetch(geoUrl(path), {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(value),
+  });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+}
+
+async function geoAction(value, method) {
+  try {
+    await geoWrite("", value, method);
+    await pull();
+  } catch (e) {
+    setOnline(false);
+    toast("Sin conexión — reintenta");
+  }
+}
+
+function distKm(a, b) {
+  const R = 6371, rad = (x) => x * Math.PI / 180;
+  const dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+const fmtDist = (d) => d < 1 ? Math.round(d * 1000) + " m" : (d < 10 ? d.toFixed(1) : Math.round(d)) + " km";
+const geoAnswers = () => geo.answers[geo.qIndex] || {};
+
+const geoView = { map: null, myMarker: null, revealLayers: [], key: "" };
+
+function emojiIcon(emoji) {
+  return L.divIcon({ html: `<span class="pinemoji">${emoji}</span>`, className: "", iconSize: [26, 26], iconAnchor: [13, 24] });
+}
+
+function initGeoMap() {
+  if (geoView.map || typeof L === "undefined") return;
+  geoView.map = L.map("geoMap", { zoomControl: true }).setView([40.2, -3.5], 5);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: "© OpenStreetMap",
+  }).addTo(geoView.map);
+  geoView.map.on("click", (e) => placeMyPin(e.latlng.lat, e.latlng.lng));
+}
+
+async function placeMyPin(lat, lng) {
+  if (geo.status !== "open" || !myPlayerId) {
+    if (!myPlayerId) toast("Únete al marcador para jugar 🙋");
+    return;
+  }
+  lat = +lat.toFixed(5); lng = +lng.toFixed(5);
+  if (!geoView.myMarker) {
+    geoView.myMarker = L.marker([lat, lng], { icon: emojiIcon("📍"), draggable: true }).addTo(geoView.map);
+    geoView.myMarker.on("dragend", () => {
+      const p = geoView.myMarker.getLatLng();
+      placeMyPin(p.lat, p.lng);
+    });
+  } else {
+    geoView.myMarker.setLatLng([lat, lng]);
+  }
+  if (!geo.answers[geo.qIndex]) geo.answers[geo.qIndex] = {};
+  geo.answers[geo.qIndex][myPlayerId] = { lat, lng };
+  renderGeoStatus();
+  try {
+    await geoWrite(`/answers/${geo.qIndex}/${myPlayerId}`, { lat, lng });
+  } catch (e) {
+    toast("No se ha podido enviar el pin — toca otra vez");
+  }
+}
+
+function clearGeoLayers() {
+  geoView.revealLayers.forEach(l => geoView.map && geoView.map.removeLayer(l));
+  geoView.revealLayers = [];
+  if (geoView.myMarker && geoView.map) { geoView.map.removeLayer(geoView.myMarker); geoView.myMarker = null; }
+}
+
+function renderGeoStatus() {
+  const el = $("geoStatus");
+  if (geo.status !== "open") { el.textContent = ""; return; }
+  const mine = geoAnswers()[myPlayerId];
+  if (!myPlayerId) { el.className = "geostatus"; el.textContent = "Únete al marcador para poder jugar 🙋"; }
+  else if (mine) { el.className = "geostatus ok"; el.textContent = "📍 Pin enviado — puedes moverlo hasta que el MC cierre"; }
+  else { el.className = "geostatus"; el.textContent = "Toca el mapa para dejar tu pin 👆"; }
+}
+
+function renderGeo() {
+  const q = GEO_BANK[geo.qIndex];
+  const showQ = (geo.status === "open" || geo.status === "revealed") && q;
+  $("geoIdle").style.display = geo.status === "idle" ? "block" : "none";
+  $("geoQuestion").style.display = showQ ? "block" : "none";
+  $("geoFinished").style.display = geo.status === "finished" ? "block" : "none";
+
+  // totales acumulados
+  const totalsEl = $("geoTotals");
+  const totals = Object.entries(geo.totals || {});
+  if (geo.status !== "idle" && totals.length) {
+    totalsEl.style.display = "flex";
+    const byPts = totals.sort((a, b) => b[1] - a[1]).slice(0, 5);
+    totalsEl.innerHTML = byPts.map(([pid, pts]) => {
+      const p = state.players.find(x => x.id === pid);
+      return `<span>${p ? p.name : "?"} <b>${pts}</b></span>`;
+    }).join("");
+  } else totalsEl.style.display = "none";
+
+  if (showQ) {
+    $("geoMeta").textContent = `Lugar ${geo.qIndex + 1} de ${GEO_BANK.length}`;
+    $("geoText").textContent = q.text + (geo.status === "revealed" ? " — " + q.label : "");
+    initGeoMap();
+
+    const key = geo.status + ":" + geo.qIndex;
+    if (geoView.key !== key && geoView.map) {
+      geoView.key = key;
+      clearGeoLayers();
+      if (geo.status === "open") {
+        geoView.map.setView([40.2, -3.5], 5);
+        const mine = geoAnswers()[myPlayerId];
+        if (mine) placeMyPin(mine.lat, mine.lng);
+      }
+      if (geo.status === "revealed" && geo.lastResult) {
+        const r = geo.lastResult;
+        const truth = L.marker([q.lat, q.lng], { icon: emojiIcon("🎯") }).addTo(geoView.map);
+        truth.bindTooltip(q.label, { permanent: false });
+        geoView.revealLayers.push(truth);
+        const pts = [[q.lat, q.lng]];
+        (r.list || []).forEach(e => {
+          const m = L.marker([e.lat, e.lng], { icon: emojiIcon("📍") }).addTo(geoView.map);
+          m.bindTooltip(e.name);
+          geoView.revealLayers.push(m);
+          pts.push([e.lat, e.lng]);
+        });
+        geoView.map.fitBounds(pts, { padding: [30, 30], maxZoom: 15 });
+      }
+    }
+
+    // resultados de la ronda
+    const res = $("geoResults");
+    if (geo.status === "revealed" && geo.lastResult) {
+      const medals = ["🥇", "🥈", "🥉"];
+      res.innerHTML = (geo.lastResult.list || []).map((e, i) =>
+        `<div class="grow"><span>${medals[i] || (i + 1) + "º"}</span><span class="gname">${e.name}</span>` +
+        `<span class="gdist">${fmtDist(e.dist)}</span><span class="gpts">${e.pts ? "+" + e.pts : ""}</span></div>`
+      ).join("") || "<div class='empty'>Nadie dejó pin 😴</div>";
+    } else res.innerHTML = "";
+    renderGeoStatus();
+  }
+
+  if (geo.status === "finished") {
+    const ranking = Object.entries(geo.totals || {}).sort((a, b) => b[1] - a[1]);
+    const medals = ["🥇", "🥈", "🥉"];
+    $("geoFinal").innerHTML = ranking.length
+      ? ranking.map(([pid, pts], i) => {
+          const p = state.players.find(x => x.id === pid);
+          return `<div>${medals[i] || (i + 1) + "º"} ${p ? p.name : "?"} — <b>${pts} pt</b></div>`;
+        }).join("") + "<div style='margin-top:10px;color:var(--muted);font-size:.85rem'>El MC pasa estos puntos al Marcador 🏆</div>"
+      : "Nadie ha puntuado 😅";
+  }
+
+  renderGeoMc();
+}
+
+function renderGeoMc() {
+  const box = $("geoMc");
+  box.style.display = mcMode ? "flex" : "none";
+  if (!mcMode) return;
+  box.innerHTML = "<div class='mctitle'>🎤 CONTROLES DEL MC</div>";
+  const info = document.createElement("div");
+  info.className = "mcinfo";
+  const btns = document.createElement("div");
+  btns.className = "mcbtns";
+  const addBtn = (label, cls, fn) => {
+    const b = document.createElement("button");
+    b.className = "smallbtn " + cls;
+    b.textContent = label;
+    b.onclick = fn;
+    btns.appendChild(b);
+  };
+
+  if (geo.status === "idle") {
+    info.textContent = `${GEO_BANK.length} lugares cargados. Todos los que jueguen deben estar unidos al marcador.`;
+    addBtn("▶ Empezar GeoBogu", "green", () =>
+      geoAction({ status: "open", qIndex: 0, answers: null, totals: null, lastResult: null }, "PUT"));
+  }
+  if (geo.status === "open") {
+    const ans = geoAnswers();
+    const conPin = state.players.filter(p => ans[p.id]).length;
+    info.textContent = `${conPin}/${state.players.length} han dejado pin.`;
+    addBtn("👁 Revelar lugar", "", geoReveal);
+  }
+  if (geo.status === "revealed") {
+    const last = geo.qIndex >= GEO_BANK.length - 1;
+    info.textContent = last ? "Era el último lugar." : "Cuando estés listo, siguiente lugar.";
+    if (!last) addBtn("⏭ Siguiente lugar", "green", () =>
+      geoAction({ status: "open", qIndex: geo.qIndex + 1, lastResult: null }, "PATCH"));
+    addBtn("🏁 Terminar", last ? "green" : "gray", () => geoAction({ status: "finished" }, "PATCH"));
+  }
+  if (geo.status !== "idle") {
+    addBtn("⟲ Reiniciar GeoBogu", "gray", () => {
+      if (!confirm("¿Borrar GeoBogu entero (pins y puntos)?")) return;
+      geoAction({ status: "idle" }, "PUT");
+    });
+  }
+  box.appendChild(info);
+  box.appendChild(btns);
+}
+
+async function geoReveal() {
+  const q = GEO_BANK[geo.qIndex];
+  // pins de última hora
+  try {
+    const res = await fetch(geoUrl(`/answers/${geo.qIndex}`), { cache: "no-store" });
+    if (res.ok) {
+      const fresh = await res.json();
+      if (fresh) geo.answers[geo.qIndex] = fresh;
+    }
+  } catch (_) {}
+  const ans = geoAnswers();
+  const list = state.players
+    .filter(p => ans[p.id])
+    .map(p => ({ pid: p.id, name: p.name, lat: ans[p.id].lat, lng: ans[p.id].lng, dist: distKm(ans[p.id], q) }))
+    .sort((a, b) => a.dist - b.dist)
+    .map((e, i) => ({ ...e, dist: +e.dist.toFixed(3), pts: GEO_PTS[i] || 0 }));
+  const totals = { ...geo.totals };
+  list.forEach(e => { if (e.pts) totals[e.pid] = (totals[e.pid] || 0) + e.pts; });
+  // n siempre presente: Firebase descarta arrays vacíos y perderíamos lastResult
+  await geoAction({ status: "revealed", totals, lastResult: { n: list.length, list } }, "PATCH");
+}
+
 /* ===================== modo MC ===================== */
 function renderMc() {
   $("mcBadge").style.display = mcMode ? "inline-block" : "none";
@@ -1102,14 +1402,20 @@ $("newRetoTitle").addEventListener("keydown", e => { if (e.key === "Enter") $("a
 
 /* ===================== tabs / botones ===================== */
 function showTab(name) {
-  ["Marcador", "Pruebas", "Duelo"].forEach(t => {
+  ["Marcador", "Pruebas", "Duelo", "Geo"].forEach(t => {
     $("tab" + t).classList.toggle("active", name === t);
     $("view" + t).classList.toggle("active", name === t);
   });
+  if (name === "Geo") {
+    initGeoMap();
+    renderGeo();
+    if (geoView.map) setTimeout(() => geoView.map.invalidateSize(), 60);
+  }
 }
 $("tabMarcador").onclick = () => showTab("Marcador");
 $("tabPruebas").onclick = () => showTab("Pruebas");
 $("tabDuelo").onclick = () => showTab("Duelo");
+$("tabGeo").onclick = () => showTab("Geo");
 $("refreshBtn").onclick = () => pull({ manual: true });
 $("publishBtn").onclick = publish;
 
@@ -1134,12 +1440,13 @@ if (!FIREBASE_DB_URL) {
 }
 render();
 pull();
-// con una pregunta abierta el sondeo se acelera para que el duelo vaya fluido
+// con una pregunta o ronda geo abierta el sondeo se acelera
 (function schedulePoll() {
+  const live = ["open", "revealed"].includes(quiz.status) || ["open", "revealed"].includes(geo.status);
   setTimeout(async () => {
     await pull();
     schedulePoll();
-  }, quiz.status === "open" || quiz.status === "revealed" ? 3000 : POLL_MS);
+  }, live ? 3000 : POLL_MS);
 })();
 </script>
 </body>
