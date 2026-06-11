@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Despedida de Bogu 🎉</title>
+<style>
+  :root {
+    --bg: #14101f;
+    --card: #1f1930;
+    --card2: #2a2240;
+    --text: #f3eefc;
+    --muted: #9d92b8;
+    --gold: #f5b942;
+    --accent: #a06bff;
+    --green: #3ed98c;
+    --red: #ff5d73;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+    padding-bottom: 90px;
+  }
+
+  /* ---------- header ---------- */
+  header {
+    padding: 18px 16px 10px;
+    text-align: center;
+    background: linear-gradient(180deg, #241a3d 0%, var(--bg) 100%);
+  }
+  header h1 { font-size: 1.5rem; letter-spacing: .5px; }
+  header h1 .party { font-size: 1.2rem; }
+  .statusbar {
+    display: flex; justify-content: center; align-items: center; gap: 8px;
+    margin-top: 6px; font-size: .78rem; color: var(--muted);
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); display: inline-block; }
+  .dot.off { background: var(--red); }
+  .mc-badge {
+    background: var(--gold); color: #2b1d00; font-weight: 700;
+    border-radius: 20px; padding: 2px 10px; font-size: .72rem;
+  }
+
+  /* ---------- warning banner ---------- */
+  .banner {
+    background: var(--red); color: #fff; text-align: center;
+    padding: 10px 14px; font-size: .85rem; font-weight: 600;
+  }
+  .banner.warn { background: #8a6d1d; }
+
+  /* ---------- tabs ---------- */
+  nav {
+    display: flex; margin: 10px 14px 0; background: var(--card);
+    border-radius: var(--radius); overflow: hidden;
+  }
+  nav button {
+    flex: 1; padding: 12px 0; background: none; border: none;
+    color: var(--muted); font-size: .95rem; font-weight: 600; cursor: pointer;
+  }
+  nav button.active { background: var(--accent); color: #fff; }
+
+  main { padding: 14px; max-width: 560px; margin: 0 auto; }
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* ---------- cards / lists ---------- */
+  .toolrow {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;
+  }
+  .toolrow .updated { font-size: .75rem; color: var(--muted); }
+  .iconbtn {
+    background: var(--card2); color: var(--text); border: none;
+    border-radius: 10px; padding: 8px 14px; font-size: 1rem; cursor: pointer;
+  }
+  .iconbtn:active { transform: scale(.94); }
+
+  ul { list-style: none; }
+  .player, .reto {
+    background: var(--card); border-radius: var(--radius);
+    padding: 12px 14px; margin-bottom: 8px;
+  }
+  .player { display: flex; align-items: center; gap: 10px; }
+  .player .pos { width: 30px; text-align: center; font-size: 1.1rem; }
+  .player .name { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .player .pts { font-weight: 800; color: var(--gold); font-size: 1.1rem; min-width: 48px; text-align: right; }
+  .player.top1 { border: 1px solid var(--gold); background: linear-gradient(90deg, #2e2410, var(--card)); }
+
+  .ptbtns { display: flex; gap: 6px; }
+  .ptbtns button, .delbtn {
+    border: none; border-radius: 8px; width: 34px; height: 34px;
+    font-size: 1rem; font-weight: 700; cursor: pointer; color: #fff;
+  }
+  .ptbtns .plus { background: #2c6e4f; }
+  .ptbtns .minus { background: #6e2c3c; }
+  .delbtn { background: none; color: var(--muted); font-size: 1.05rem; }
+
+  .reto .toprow { display: flex; align-items: center; gap: 10px; }
+  .reto .rtitle { flex: 1; font-weight: 600; }
+  .reto.done .rtitle { text-decoration: line-through; color: var(--muted); }
+  .reto .rpts {
+    background: var(--card2); color: var(--gold); font-weight: 700;
+    border-radius: 8px; padding: 3px 9px; font-size: .85rem; white-space: nowrap;
+  }
+  .reto .doneby { font-size: .78rem; color: var(--green); margin-top: 5px; }
+  .reto .mcrow { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
+  .reto select {
+    flex: 1; background: var(--card2); color: var(--text); border: none;
+    border-radius: 8px; padding: 8px; font-size: .9rem;
+  }
+  .smallbtn {
+    border: none; border-radius: 8px; padding: 8px 12px; font-size: .85rem;
+    font-weight: 700; cursor: pointer; color: #fff; background: var(--accent); white-space: nowrap;
+  }
+  .smallbtn.green { background: #2c6e4f; }
+  .smallbtn.gray { background: var(--card2); color: var(--muted); }
+
+  .empty { text-align: center; color: var(--muted); padding: 30px 10px; font-size: .9rem; }
+
+  /* ---------- MC add forms ---------- */
+  .addform { display: flex; gap: 8px; margin: 14px 0 4px; }
+  .addform input {
+    background: var(--card); border: 1px solid var(--card2); color: var(--text);
+    border-radius: 10px; padding: 11px 12px; font-size: 16px; /* 16px evita zoom iOS */
+  }
+  .addform input.grow { flex: 1; min-width: 0; }
+  .addform input.pts { width: 70px; text-align: center; }
+  .addform button {
+    background: var(--accent); color: #fff; border: none; border-radius: 10px;
+    padding: 0 16px; font-size: 1.2rem; font-weight: 700; cursor: pointer;
+  }
+
+  /* ---------- publish bar ---------- */
+  .pubbar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--card); border-top: 1px solid var(--card2);
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    display: none; align-items: center; gap: 12px; z-index: 50;
+  }
+  .pubbar.show { display: flex; }
+  .pubbar .pending { flex: 1; font-size: .8rem; color: var(--muted); }
+  .pubbar .pending.dirty { color: var(--gold); font-weight: 700; }
+  .pubbtn {
+    background: var(--gold); color: #2b1d00; border: none; border-radius: 12px;
+    padding: 12px 22px; font-size: 1rem; font-weight: 800; cursor: pointer;
+  }
+  .pubbtn:disabled { opacity: .45; }
+
+  /* ---------- MC link / modal ---------- */
+  .mclink {
+    display: block; margin: 26px auto 10px; background: none; border: none;
+    color: var(--muted); font-size: .78rem; cursor: pointer; text-decoration: underline;
+  }
+  .modal {
+    position: fixed; inset: 0; background: rgba(0,0,0,.65);
+    display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px;
+  }
+  .modal.show { display: flex; }
+  .modal .box {
+    background: var(--card); border-radius: var(--radius); padding: 22px;
+    width: 100%; max-width: 320px; text-align: center;
+  }
+  .modal .box h3 { margin-bottom: 14px; font-size: 1.05rem; }
+  .modal input {
+    width: 100%; background: var(--card2); border: 1px solid #3a2f5c; color: var(--text);
+    border-radius: 10px; padding: 12px; font-size: 16px; text-align: center;
+    text-transform: uppercase; letter-spacing: 2px;
+  }
+  .modal .btns { display: flex; gap: 10px; margin-top: 16px; }
+  .modal .btns button { flex: 1; padding: 11px 0; border-radius: 10px; border: none; font-weight: 700; cursor: pointer; font-size: .9rem; }
+  .modal .ok { background: var(--accent); color: #fff; }
+  .modal .cancel { background: var(--card2); color: var(--muted); }
+  .modal .err { color: var(--red); font-size: .8rem; margin-top: 10px; min-height: 1em; }
+
+  .toast {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: 100px; background: #000c; color: #fff; padding: 10px 18px;
+    border-radius: 20px; font-size: .85rem; opacity: 0; transition: opacity .3s; z-index: 200;
+    pointer-events: none; white-space: nowrap;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div id="banner" class="banner" style="display:none"></div>
+
+<header>
+  <h1><span class="party">🎉</span> Despedida de Bogu <span class="party">🎉</span></h1>
+  <div class="statusbar">
+    <span id="statusDot" class="dot"></span>
+    <span id="statusText">Conectando…</span>
+    <span id="mcBadge" class="mc-badge" style="display:none">MODO MC</span>
+  </div>
+</header>
+
+<nav>
+  <button id="tabMarcador" class="active">🏆 Marcador</button>
+  <button id="tabPruebas">🎯 Pruebas</button>
+</nav>
+
+<main>
+  <!-- ===== MARCADOR ===== -->
+  <section id="viewMarcador" class="view active">
+    <div class="toolrow">
+      <span class="updated" id="updatedAt">—</span>
+      <button class="iconbtn" id="refreshBtn" title="Actualizar">↻</button>
+    </div>
+    <ul id="playerList"></ul>
+    <div id="playersEmpty" class="empty">Todavía no hay jugadores.<br>El MC los añadirá en breve 🍻</div>
+    <div class="addform" id="addPlayerForm" style="display:none">
+      <input class="grow" id="newPlayerName" placeholder="Nombre del jugador" maxlength="24">
+      <button id="addPlayerBtn">+</button>
+    </div>
+  </section>
+
+  <!-- ===== PRUEBAS ===== -->
+  <section id="viewPruebas" class="view">
+    <ul id="retoList"></ul>
+    <div id="retosEmpty" class="empty">Aún no hay pruebas.<br>Que tiemble el novio… 😈</div>
+    <div class="addform" id="addRetoForm" style="display:none">
+      <input class="grow" id="newRetoTitle" placeholder="Nueva prueba" maxlength="80">
+      <input class="pts" id="newRetoPts" type="number" inputmode="numeric" placeholder="pts" value="5" min="0" max="999">
+      <button id="addRetoBtn">+</button>
+    </div>
+  </section>
+
+  <button class="mclink" id="mcLink">¿Eres el MC?</button>
+</main>
+
+<!-- publish bar -->
+<div class="pubbar" id="pubbar">
+  <span class="pending" id="pendingTxt">Sin cambios pendientes</span>
+  <button class="pubbtn" id="publishBtn" disabled>Publicar</button>
+</div>
+
+<!-- MC modal -->
+<div class="modal" id="mcModal">
+  <div class="box">
+    <h3>🎤 Modo MC</h3>
+    <input id="mcCodeInput" placeholder="CÓDIGO" autocomplete="off">
+    <div class="err" id="mcErr"></div>
+    <div class="btns">
+      <button class="cancel" id="mcCancel">Cancelar</button>
+      <button class="ok" id="mcOk">Entrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =====================================================================
+   CONFIGURACIÓN — la única línea que hay que tocar
+   ===================================================================== */
+const FIREBASE_DB_URL = "https://despedida-bogu-default-rtdb.europe-west1.firebasedatabase.app";
+
+const MC_CODE = "BOGU7";
+const POLL_MS = 8000;
+
+/* ===================== estado ===================== */
+let state = { updatedAt: 0, players: [], retos: [] };
+let mcMode = localStorage.getItem("mcMode") === "1";
+let dirty = false;          // cambios locales sin publicar
+let lastSyncedAt = 0;       // updatedAt remoto que tenemos aplicado/visto
+let online = null;
+
+const $ = (id) => document.getElementById(id);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+function normalize(raw) {
+  raw = raw || {};
+  return {
+    updatedAt: raw.updatedAt || 0,
+    players: Object.values(raw.players || {}).filter(Boolean),
+    retos: Object.values(raw.retos || {}).filter(Boolean),
+  };
+}
+
+/* ===================== red (REST, sin SDK) ===================== */
+const dbUrl = () => FIREBASE_DB_URL.replace(/\/+$/, "") + "/state.json";
+
+async function fetchRemote() {
+  const res = await fetch(dbUrl(), { cache: "no-store" });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  return normalize(await res.json());
+}
+
+async function pull({ manual = false } = {}) {
+  if (!FIREBASE_DB_URL) return;
+  try {
+    const remote = await fetchRemote();
+    setOnline(true);
+    if (dirty) {
+      // no machacar ediciones locales del MC; solo recordar qué hay fuera
+      lastSyncedAt = Math.max(lastSyncedAt, 0); // se comprueba al publicar
+      if (manual) toast("Tienes cambios sin publicar — no se ha sobrescrito");
+      return;
+    }
+    state = remote;
+    lastSyncedAt = remote.updatedAt;
+    render();
+    if (manual) toast("Actualizado ✔");
+  } catch (e) {
+    setOnline(false);
+    if (manual) toast("Sin conexión 😕");
+  }
+}
+
+async function publish() {
+  if (!FIREBASE_DB_URL) return;
+  const btn = $("publishBtn");
+  btn.disabled = true;
+  btn.textContent = "…";
+  try {
+    // detectar si alguien publicó después de nuestra última sincronización
+    let remote = null;
+    try { remote = await fetchRemote(); } catch (_) {}
+    if (remote && remote.updatedAt > lastSyncedAt) {
+      const ok = confirm("⚠️ Hay una versión más reciente publicada por otro dispositivo. ¿Sobrescribirla con tus cambios?");
+      if (!ok) { btn.textContent = "Publicar"; updatePubbar(); return; }
+    }
+    state.updatedAt = Date.now();
+    const res = await fetch(dbUrl(), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(state),
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    dirty = false;
+    lastSyncedAt = state.updatedAt;
+    setOnline(true);
+    render();
+    toast("¡Publicado! 🎉");
+  } catch (e) {
+    setOnline(false);
+    toast("Error al publicar — reintenta");
+  }
+  btn.textContent = "Publicar";
+  updatePubbar();
+}
+
+/* ===================== UI: estado / cabecera ===================== */
+function setOnline(v) {
+  online = v;
+  $("statusDot").className = "dot" + (v ? "" : " off");
+  $("statusText").textContent = v ? "En línea" : "Sin conexión";
+}
+
+function fmtTime(ts) {
+  if (!ts) return "Sin datos todavía";
+  const d = new Date(ts);
+  return "Actualizado a las " + d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+}
+
+function markDirty() {
+  dirty = true;
+  render();
+}
+
+/* ===================== render ===================== */
+function render() {
+  $("updatedAt").textContent = fmtTime(state.updatedAt);
+  renderPlayers();
+  renderRetos();
+  renderMc();
+  updatePubbar();
+}
+
+function renderPlayers() {
+  const list = $("playerList");
+  const sorted = [...state.players].sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
+  $("playersEmpty").style.display = sorted.length ? "none" : "block";
+  list.innerHTML = "";
+  const medals = ["🥇", "🥈", "🥉"];
+  sorted.forEach((p, i) => {
+    const li = document.createElement("li");
+    li.className = "player" + (i === 0 && p.points > 0 ? " top1" : "");
+    const pos = document.createElement("span");
+    pos.className = "pos";
+    pos.textContent = medals[i] || (i + 1) + "º";
+    const name = document.createElement("span");
+    name.className = "name";
+    name.textContent = p.name;
+    const pts = document.createElement("span");
+    pts.className = "pts";
+    pts.textContent = p.points + " pt";
+    li.append(pos, name, pts);
+    if (mcMode) {
+      const btns = document.createElement("span");
+      btns.className = "ptbtns";
+      const plus = document.createElement("button");
+      plus.className = "plus"; plus.textContent = "+";
+      plus.onclick = () => { p.points += 1; markDirty(); };
+      const minus = document.createElement("button");
+      minus.className = "minus"; minus.textContent = "−";
+      minus.onclick = () => { p.points -= 1; markDirty(); };
+      btns.append(plus, minus);
+      const del = document.createElement("button");
+      del.className = "delbtn"; del.textContent = "✕";
+      del.onclick = () => {
+        if (confirm(`¿Eliminar a ${p.name}?`)) {
+          state.players = state.players.filter(x => x.id !== p.id);
+          markDirty();
+        }
+      };
+      li.append(btns, del);
+    }
+    list.appendChild(li);
+  });
+}
+
+function renderRetos() {
+  const list = $("retoList");
+  $("retosEmpty").style.display = state.retos.length ? "none" : "block";
+  list.innerHTML = "";
+  const pending = state.retos.filter(r => !r.done);
+  const done = state.retos.filter(r => r.done);
+  [...pending, ...done].forEach((r) => {
+    const li = document.createElement("li");
+    li.className = "reto" + (r.done ? " done" : "");
+    const top = document.createElement("div");
+    top.className = "toprow";
+    const title = document.createElement("span");
+    title.className = "rtitle";
+    title.textContent = (r.done ? "✅ " : "🎯 ") + r.title;
+    const pts = document.createElement("span");
+    pts.className = "rpts";
+    pts.textContent = "+" + r.points + " pt";
+    top.append(title, pts);
+    li.appendChild(top);
+    if (r.done && r.doneBy) {
+      const by = document.createElement("div");
+      by.className = "doneby";
+      by.textContent = "Conseguida por " + r.doneBy;
+      li.appendChild(by);
+    }
+    if (mcMode) {
+      const row = document.createElement("div");
+      row.className = "mcrow";
+      if (!r.done) {
+        const sel = document.createElement("select");
+        const opt0 = document.createElement("option");
+        opt0.value = ""; opt0.textContent = "¿Quién la ha hecho?";
+        sel.appendChild(opt0);
+        state.players.forEach(p => {
+          const o = document.createElement("option");
+          o.value = p.id; o.textContent = p.name;
+          sel.appendChild(o);
+        });
+        const ok = document.createElement("button");
+        ok.className = "smallbtn green";
+        ok.textContent = "✔ Hecha";
+        ok.onclick = () => {
+          const player = state.players.find(p => p.id === sel.value);
+          if (!player) { toast("Elige un jugador primero"); return; }
+          r.done = true;
+          r.doneBy = player.name;
+          player.points += r.points;
+          markDirty();
+          toast(`+${r.points} pt para ${player.name} 💪`);
+        };
+        row.append(sel, ok);
+      } else {
+        const undo = document.createElement("button");
+        undo.className = "smallbtn gray";
+        undo.textContent = "↩ Deshacer";
+        undo.onclick = () => {
+          const player = state.players.find(p => p.name === r.doneBy);
+          if (player) player.points -= r.points;
+          r.done = false;
+          r.doneBy = "";
+          markDirty();
+        };
+        row.append(undo);
+      }
+      const del = document.createElement("button");
+      del.className = "delbtn"; del.textContent = "✕";
+      del.onclick = () => {
+        if (confirm("¿Eliminar esta prueba?")) {
+          state.retos = state.retos.filter(x => x.id !== r.id);
+          markDirty();
+        }
+      };
+      row.appendChild(del);
+      li.appendChild(row);
+    }
+    list.appendChild(li);
+  });
+}
+
+/* ===================== modo MC ===================== */
+function renderMc() {
+  $("mcBadge").style.display = mcMode ? "inline-block" : "none";
+  $("addPlayerForm").style.display = mcMode ? "flex" : "none";
+  $("addRetoForm").style.display = mcMode ? "flex" : "none";
+  $("pubbar").classList.toggle("show", mcMode);
+  $("mcLink").textContent = mcMode ? "Salir del modo MC" : "¿Eres el MC?";
+}
+
+function updatePubbar() {
+  $("publishBtn").disabled = !dirty;
+  const t = $("pendingTxt");
+  t.textContent = dirty ? "● Cambios sin publicar" : "Sin cambios pendientes";
+  t.className = "pending" + (dirty ? " dirty" : "");
+}
+
+$("mcLink").onclick = () => {
+  if (mcMode) {
+    if (dirty && !confirm("Tienes cambios sin publicar. ¿Salir igualmente?")) return;
+    mcMode = false;
+    dirty = false;
+    localStorage.removeItem("mcMode");
+    pull();
+    render();
+  } else {
+    $("mcErr").textContent = "";
+    $("mcCodeInput").value = "";
+    $("mcModal").classList.add("show");
+    setTimeout(() => $("mcCodeInput").focus(), 50);
+  }
+};
+$("mcCancel").onclick = () => $("mcModal").classList.remove("show");
+$("mcOk").onclick = tryUnlock;
+$("mcCodeInput").addEventListener("keydown", e => { if (e.key === "Enter") tryUnlock(); });
+
+function tryUnlock() {
+  if ($("mcCodeInput").value.trim().toUpperCase() === MC_CODE) {
+    mcMode = true;
+    localStorage.setItem("mcMode", "1");
+    $("mcModal").classList.remove("show");
+    render();
+    toast("Modo MC activado 🎤");
+  } else {
+    $("mcErr").textContent = "Código incorrecto";
+  }
+}
+
+/* ===================== añadir jugador / prueba ===================== */
+$("addPlayerBtn").onclick = () => {
+  const input = $("newPlayerName");
+  const name = input.value.trim();
+  if (!name) return;
+  if (state.players.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+    toast("Ese nombre ya existe"); return;
+  }
+  state.players.push({ id: uid(), name, points: 0 });
+  input.value = "";
+  markDirty();
+};
+$("newPlayerName").addEventListener("keydown", e => { if (e.key === "Enter") $("addPlayerBtn").click(); });
+
+$("addRetoBtn").onclick = () => {
+  const title = $("newRetoTitle").value.trim();
+  const points = Math.max(0, parseInt($("newRetoPts").value, 10) || 0);
+  if (!title) return;
+  state.retos.push({ id: uid(), title, points, done: false, doneBy: "" });
+  $("newRetoTitle").value = "";
+  markDirty();
+};
+$("newRetoTitle").addEventListener("keydown", e => { if (e.key === "Enter") $("addRetoBtn").click(); });
+
+/* ===================== tabs / botones ===================== */
+function showTab(name) {
+  $("tabMarcador").classList.toggle("active", name === "marcador");
+  $("tabPruebas").classList.toggle("active", name === "pruebas");
+  $("viewMarcador").classList.toggle("active", name === "marcador");
+  $("viewPruebas").classList.toggle("active", name === "pruebas");
+}
+$("tabMarcador").onclick = () => showTab("marcador");
+$("tabPruebas").onclick = () => showTab("pruebas");
+$("refreshBtn").onclick = () => pull({ manual: true });
+$("publishBtn").onclick = publish;
+
+let toastTimer;
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+window.addEventListener("beforeunload", (e) => {
+  if (dirty) { e.preventDefault(); e.returnValue = ""; }
+});
+
+/* ===================== arranque ===================== */
+if (!FIREBASE_DB_URL) {
+  const b = $("banner");
+  b.style.display = "block";
+  b.textContent = "⚠️ Falta configurar FIREBASE_DB_URL en index.html — el marcador no se sincronizará.";
+}
+render();
+pull();
+setInterval(pull, POLL_MS);
+</script>
+</body>
+</html>
