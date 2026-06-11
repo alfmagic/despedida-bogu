@@ -487,6 +487,7 @@ let geo = { status: "idle", qIndex: 0, answers: {}, totals: {}, lastResult: null
 let mcMode = localStorage.getItem("mcMode") === "1";
 let myPlayerId = localStorage.getItem("myPlayerId") || "";
 let dirty = false;          // cambios locales sin publicar
+let deletedIds = new Set(); // jugadores borrados por el MC pendientes de publicar
 let lastSyncedAt = 0;       // updatedAt remoto que tenemos aplicado/visto
 let online = null;
 
@@ -590,7 +591,8 @@ async function publish() {
     try { remote = await fetchRemote(); } catch (_) {}
     if (remote) {
       remote.players.forEach(rp => {
-        if (!state.players.some(p => p.id === rp.id)) state.players.push(rp);
+        // altas nuevas sí; jugadores borrados por el MC en esta tanda, no
+        if (!state.players.some(p => p.id === rp.id) && !deletedIds.has(rp.id)) state.players.push(rp);
       });
     }
     state.updatedAt = Date.now();
@@ -606,6 +608,7 @@ async function publish() {
     });
     if (!res.ok) throw new Error("HTTP " + res.status);
     dirty = false;
+    deletedIds.clear();
     lastSyncedAt = state.updatedAt;
     setOnline(true);
     render();
@@ -694,6 +697,7 @@ function renderPlayers() {
       del.onclick = () => {
         if (confirm(`¿Eliminar a ${p.name}?`)) {
           state.players = state.players.filter(x => x.id !== p.id);
+          deletedIds.add(p.id);
           markDirty();
         }
       };
@@ -1347,6 +1351,7 @@ $("mcLink").onclick = () => {
     if (dirty && !confirm("Tienes cambios sin publicar. ¿Salir igualmente?")) return;
     mcMode = false;
     dirty = false;
+    deletedIds.clear();
     localStorage.removeItem("mcMode");
     pull();
     render();
