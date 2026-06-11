@@ -89,10 +89,10 @@
   .player .pts { font-weight: 800; color: var(--gold); font-size: 1.1rem; min-width: 48px; text-align: right; }
   .player.top1 { border: 1px solid var(--gold); background: linear-gradient(90deg, #2e2410, var(--card)); }
 
-  .ptbtns { display: flex; gap: 6px; }
+  .ptbtns { display: flex; gap: 5px; }
   .ptbtns button, .delbtn {
-    border: none; border-radius: 8px; width: 34px; height: 34px;
-    font-size: 1rem; font-weight: 700; cursor: pointer; color: #fff;
+    border: none; border-radius: 8px; width: 32px; height: 32px;
+    font-size: .85rem; font-weight: 700; cursor: pointer; color: #fff;
   }
   .ptbtns .plus { background: #2c6e4f; }
   .ptbtns .minus { background: #6e2c3c; }
@@ -119,6 +119,22 @@
   .smallbtn.gray { background: var(--card2); color: var(--muted); }
 
   .empty { text-align: center; color: var(--muted); padding: 30px 10px; font-size: .9rem; }
+
+  /* ---------- join ---------- */
+  .joinbtn {
+    display: block; width: 100%; background: var(--accent); color: #fff;
+    border: none; border-radius: var(--radius); padding: 14px;
+    font-size: 1rem; font-weight: 700; cursor: pointer; margin-bottom: 12px;
+  }
+  .joinbtn:active { transform: scale(.98); }
+  .avatars { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 14px; }
+  .avatars button {
+    background: var(--card2); border: 2px solid transparent; border-radius: 10px;
+    font-size: 1.5rem; padding: 6px 0; cursor: pointer; line-height: 1.4;
+  }
+  .avatars button.sel { border-color: var(--gold); background: #3a2f5c; }
+  .player .avatar { font-size: 1.3rem; }
+  .player .you { color: var(--muted); font-size: .75rem; font-weight: 400; }
 
   /* ---------- MC add forms ---------- */
   .addform { display: flex; gap: 8px; margin: 14px 0 4px; }
@@ -209,8 +225,9 @@
       <span class="updated" id="updatedAt">—</span>
       <button class="iconbtn" id="refreshBtn" title="Actualizar">↻</button>
     </div>
+    <button class="joinbtn" id="joinBtn" style="display:none">🙋 Únete al marcador</button>
     <ul id="playerList"></ul>
-    <div id="playersEmpty" class="empty">Todavía no hay jugadores.<br>El MC los añadirá en breve 🍻</div>
+    <div id="playersEmpty" class="empty">Todavía no hay jugadores.<br>¡Sé el primero en unirte! 🍻</div>
     <div class="addform" id="addPlayerForm" style="display:none">
       <input class="grow" id="newPlayerName" placeholder="Nombre del jugador" maxlength="24">
       <button id="addPlayerBtn">+</button>
@@ -250,6 +267,21 @@
   </div>
 </div>
 
+<!-- join modal -->
+<div class="modal" id="joinModal">
+  <div class="box">
+    <h3>🙋 Únete al marcador</h3>
+    <input id="joinName" placeholder="Tu nombre" maxlength="24" autocomplete="off"
+           style="text-transform:none;letter-spacing:normal">
+    <div class="avatars" id="avatarGrid"></div>
+    <div class="err" id="joinErr"></div>
+    <div class="btns">
+      <button class="cancel" id="joinCancel">Cancelar</button>
+      <button class="ok" id="joinOk">¡Dentro!</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -261,9 +293,23 @@ const FIREBASE_DB_URL = "https://despedida-bogu-default-rtdb.europe-west1.fireba
 const MC_CODE = "BOGU7";
 const POLL_MS = 8000;
 
+const AVATARS = [
+  "🍰", // cheesecake
+  "🤠", // Indiana Jones
+  "🌑", // "Eso no es una luna…" (Star Wars)
+  "🏛️", // Imperio Romano
+  "🪖", // guerra mundial
+  "🐑", // oveja negra
+  "🥃", // chupito
+  "🥔", // saco de patatas roto
+  "🇨🇴", // Colombia
+  "🥸", "🤪", "🤨", "😏", "🥴", "😵‍💫", "🤤", "😬", "🫠", "🤓", "👴", // caretos
+];
+
 /* ===================== estado ===================== */
 let state = { updatedAt: 0, players: [], retos: [] };
 let mcMode = localStorage.getItem("mcMode") === "1";
+let myPlayerId = localStorage.getItem("myPlayerId") || "";
 let dirty = false;          // cambios locales sin publicar
 let lastSyncedAt = 0;       // updatedAt remoto que tenemos aplicado/visto
 let online = null;
@@ -281,7 +327,8 @@ function normalize(raw) {
 }
 
 /* ===================== red (REST, sin SDK) ===================== */
-const dbUrl = () => FIREBASE_DB_URL.replace(/\/+$/, "") + "/state.json";
+const dbBase = () => FIREBASE_DB_URL.replace(/\/+$/, "");
+const dbUrl = () => dbBase() + "/state.json";
 
 async function fetchRemote() {
   const res = await fetch(dbUrl(), { cache: "no-store" });
@@ -302,6 +349,11 @@ async function pull({ manual = false } = {}) {
     }
     state = remote;
     lastSyncedAt = remote.updatedAt;
+    // si el MC borró mi jugador (o se reinició el marcador), permitir unirse de nuevo
+    if (myPlayerId && !state.players.some(p => p.id === myPlayerId)) {
+      myPlayerId = "";
+      localStorage.removeItem("myPlayerId");
+    }
     render();
     if (manual) toast("Actualizado ✔");
   } catch (e) {
@@ -316,18 +368,24 @@ async function publish() {
   btn.disabled = true;
   btn.textContent = "…";
   try {
-    // detectar si alguien publicó después de nuestra última sincronización
+    // incorporar jugadores que se hayan unido desde otros móviles mientras editábamos
     let remote = null;
     try { remote = await fetchRemote(); } catch (_) {}
-    if (remote && remote.updatedAt > lastSyncedAt) {
-      const ok = confirm("⚠️ Hay una versión más reciente publicada por otro dispositivo. ¿Sobrescribirla con tus cambios?");
-      if (!ok) { btn.textContent = "Publicar"; updatePubbar(); return; }
+    if (remote) {
+      remote.players.forEach(rp => {
+        if (!state.players.some(p => p.id === rp.id)) state.players.push(rp);
+      });
     }
     state.updatedAt = Date.now();
+    const payload = {
+      updatedAt: state.updatedAt,
+      players: Object.fromEntries(state.players.map(p => [p.id, p])),
+      retos: state.retos,
+    };
     const res = await fetch(dbUrl(), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(state),
+      body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error("HTTP " + res.status);
     dirty = false;
@@ -382,23 +440,35 @@ function renderPlayers() {
     const pos = document.createElement("span");
     pos.className = "pos";
     pos.textContent = medals[i] || (i + 1) + "º";
+    const av = document.createElement("span");
+    av.className = "avatar";
+    av.textContent = p.avatar || "🙂";
     const name = document.createElement("span");
     name.className = "name";
     name.textContent = p.name;
+    if (p.id === myPlayerId) {
+      const you = document.createElement("span");
+      you.className = "you";
+      you.textContent = " (tú)";
+      name.appendChild(you);
+    }
     const pts = document.createElement("span");
     pts.className = "pts";
     pts.textContent = p.points + " pt";
-    li.append(pos, name, pts);
+    li.append(pos, av, name, pts);
     if (mcMode) {
       const btns = document.createElement("span");
       btns.className = "ptbtns";
       const plus = document.createElement("button");
-      plus.className = "plus"; plus.textContent = "+";
+      plus.className = "plus"; plus.textContent = "+1";
       plus.onclick = () => { p.points += 1; markDirty(); };
+      const plus5 = document.createElement("button");
+      plus5.className = "plus"; plus5.textContent = "+5";
+      plus5.onclick = () => { p.points += 5; markDirty(); };
       const minus = document.createElement("button");
-      minus.className = "minus"; minus.textContent = "−";
+      minus.className = "minus"; minus.textContent = "−1";
       minus.onclick = () => { p.points -= 1; markDirty(); };
-      btns.append(plus, minus);
+      btns.append(plus, plus5, minus);
       const del = document.createElement("button");
       del.className = "delbtn"; del.textContent = "✕";
       del.onclick = () => {
@@ -499,6 +569,71 @@ function renderMc() {
   $("addRetoForm").style.display = mcMode ? "flex" : "none";
   $("pubbar").classList.toggle("show", mcMode);
   $("mcLink").textContent = mcMode ? "Salir del modo MC" : "¿Eres el MC?";
+  $("joinBtn").style.display = (!myPlayerId && !mcMode) ? "block" : "none";
+}
+
+/* ===================== unirse al marcador ===================== */
+let selAvatar = "";
+
+(function buildAvatarGrid() {
+  const grid = $("avatarGrid");
+  AVATARS.forEach(a => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = a;
+    b.onclick = () => {
+      selAvatar = a;
+      grid.querySelectorAll("button").forEach(x => x.classList.toggle("sel", x === b));
+    };
+    grid.appendChild(b);
+  });
+})();
+
+$("joinBtn").onclick = () => {
+  $("joinErr").textContent = "";
+  $("joinName").value = "";
+  selAvatar = "";
+  $("avatarGrid").querySelectorAll("button").forEach(x => x.classList.remove("sel"));
+  $("joinModal").classList.add("show");
+  setTimeout(() => $("joinName").focus(), 50);
+};
+$("joinCancel").onclick = () => $("joinModal").classList.remove("show");
+$("joinOk").onclick = join;
+$("joinName").addEventListener("keydown", e => { if (e.key === "Enter") join(); });
+
+async function join() {
+  const name = $("joinName").value.trim();
+  if (!name) { $("joinErr").textContent = "Pon tu nombre"; return; }
+  if (!selAvatar) { $("joinErr").textContent = "Elige un avatar"; return; }
+  if (state.players.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+    $("joinErr").textContent = "Ese nombre ya está cogido"; return;
+  }
+  const btn = $("joinOk");
+  btn.disabled = true;
+  const player = { id: uid(), name, avatar: selAvatar, points: 0 };
+  try {
+    // alta atómica: solo escribe su propio nodo, no pisa a nadie
+    let res = await fetch(`${dbBase()}/state/players/${player.id}.json`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(player),
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    await fetch(`${dbBase()}/state/updatedAt.json`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(Date.now()),
+    });
+    myPlayerId = player.id;
+    localStorage.setItem("myPlayerId", myPlayerId);
+    $("joinModal").classList.remove("show");
+    setOnline(true);
+    await pull();
+    toast(`¡Dentro, ${name}! ${selAvatar}`);
+  } catch (e) {
+    $("joinErr").textContent = "Sin conexión — inténtalo de nuevo";
+  }
+  btn.disabled = false;
 }
 
 function updatePubbar() {
