@@ -58,8 +58,10 @@
     display: flex; margin: 10px 14px 0; background: var(--card);
     border-radius: var(--radius); overflow: hidden;
   }
+  nav { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  nav::-webkit-scrollbar { display: none; }
   nav button {
-    flex: 1; padding: 12px 0; background: none; border: none;
+    flex: 1 0 auto; padding: 12px 9px; background: none; border: none;
     color: var(--muted); font-size: .82rem; font-weight: 600; cursor: pointer;
     white-space: nowrap;
   }
@@ -217,6 +219,23 @@
     background: #0b0e1a; border: 1px solid #222c4a;
     text-transform: uppercase; letter-spacing: 1.5px;
   }
+
+  /* ---------- precio justo ---------- */
+  .precioimg {
+    display: block; width: min(58vw, 250px); aspect-ratio: 1; object-fit: contain;
+    margin: 0 auto 10px; border-radius: 14px; background: #fff;
+  }
+  .precioinput { display: flex; gap: 8px; align-items: center; justify-content: center; margin-top: 12px; }
+  .precioinput input {
+    width: 110px; background: var(--card); color: var(--text); border: 2px solid var(--card2);
+    border-radius: 10px; padding: 12px; font-size: 1.3rem; font-weight: 700; text-align: center;
+  }
+  .precioinput input:focus { border-color: var(--accent); outline: none; }
+  .precioinput .eur { font-size: 1.3rem; font-weight: 700; color: var(--muted); }
+  .precioinput .smallbtn { flex: 0 0 auto; padding: 12px 16px; }
+  .preciopvp {
+    text-align: center; font-size: 1.5rem; font-weight: 900; color: var(--gold); margin-top: 12px;
+  }
   .geostatus { text-align: center; color: var(--muted); font-size: .82rem; margin-top: 8px; min-height: 1.2em; }
   .geostatus.ok { color: var(--green); font-weight: 600; }
   .georesults { margin-top: 12px; }
@@ -318,6 +337,7 @@
   <button id="tabDuelo">🧠 Duelo</button>
   <button id="tabGeo">📍 GeoBogu</button>
   <button id="tabSw">⭐ Amenaza</button>
+  <button id="tabPrecio">💰 Precio</button>
 </nav>
 
 <main>
@@ -409,6 +429,30 @@
       <div class="finalverdict" id="swFinal"></div>
     </div>
     <div id="swMc" class="duelmc" style="display:none"></div>
+  </section>
+
+  <!-- ===== EL PRECIO JUSTO · MERCADONA ===== -->
+  <section id="viewPrecio" class="view">
+    <div class="geototals" id="precioTotals" style="display:none"></div>
+    <div id="precioIdle" class="empty">💰 EL PRECIO JUSTO · MERCADONA<br><br>20 productos reales a precio de hoy. Escribe tu precio en cada ronda: el que más se acerque se lleva 1 punto (los empates lo comparten).</div>
+    <div id="precioQuestion" style="display:none">
+      <div class="qmeta" id="precioMeta"></div>
+      <img id="precioImg" class="precioimg" alt="Producto">
+      <div class="qcard" id="precioText"></div>
+      <div class="precioinput" id="precioInputRow">
+        <input id="precioGuess" type="text" inputmode="decimal" placeholder="0,00" maxlength="7" autocomplete="off">
+        <span class="eur">€</span>
+        <button id="precioSend" class="smallbtn green">💶 Enviar</button>
+      </div>
+      <div class="geostatus" id="precioStatus"></div>
+      <div class="preciopvp" id="precioPvp" style="display:none"></div>
+      <div class="georesults" id="precioResults"></div>
+    </div>
+    <div id="precioFinished" style="display:none" class="finalbox">
+      <div class="finalscore">💰 El Precio Justo</div>
+      <div class="finalverdict" id="precioFinal"></div>
+    </div>
+    <div id="precioMc" class="duelmc" style="display:none"></div>
   </section>
 
   <button class="mclink" id="mcLink">¿Eres el MC?</button>
@@ -528,6 +572,31 @@ const SW_BANK = [
 ];
 const PARSECS_PER_UNIT = 37; // el mapa galáctico mide ~37.000 pársecs de punta a punta
 
+/* EL PRECIO JUSTO · MERCADONA — productos y precios reales sacados de tienda.mercadona.es el 12/06/2026 */
+const MIMG = (h) => `https://prod-mercadona.imgix.net/images/${h}.jpg?fit=crop&h=400&w=400`;
+const PRECIO_BANK = [
+  { name: "Cerveza Clásica Steinburg", pack: "Lata 33 cl", price: 0.30, img: MIMG("61ba97a0f85e358acd3df6c8c904327f") },
+  { name: "Patatas fritas clásicas Hacendado", pack: "Paquete 300 g", price: 1.80, img: MIMG("daa5379864f490d809e6272ea964a119") },
+  { name: "Crema al cacao con avellanas Nutella", pack: "Tarro 350 g", price: 4.00, img: MIMG("c2dddb8c129b6e17ebf2af26631d0df9") },
+  { name: "Sal fina Hacendado", pack: "Paquete 1 kg", price: 0.40, img: MIMG("5097b3d7450edab7c2d9586299f5f3b9") },
+  { name: "Tortilla de patata con cebolla Listo para Comer", pack: "Entera, 1,3 kg", price: 8.50, img: MIMG("c769f9e8e8634ea05f33eee3b5243d34") },
+  { name: "Aperitivo de patata sabor original Pringles", pack: "Bote 165 g", price: 2.00, img: MIMG("a4435dab3e9e7f62f7a5e6f576a008a9") },
+  { name: "Fabada Hacendado", pack: "Bote 420 g", price: 1.45, img: MIMG("8cdfd085c49c506fa378ee48944ac5d7") },
+  { name: "Cacao soluble ColaCao original", pack: "Bote 760 g", price: 7.00, img: MIMG("5b4b97d32121b70c073129d07dbaab24") },
+  { name: "Chocolate con leche Milka", pack: "Tableta 150 g", price: 1.95, img: MIMG("e6cbab042ce93bc6756ef45ff91a19bc") },
+  { name: "Pollo asado Hacendado", pack: "Paquete 1,25 kg", price: 7.06, img: MIMG("bf5c527e50ce50bb951e705fad9dc27f") },
+  { name: "Fideos orientales Yakisoba sabor soja Hacendado", pack: "Vaso 80 g", price: 1.00, img: MIMG("d30e5205f4db5418b3f5e8033371d978") },
+  { name: "Jamón de cebo ibérico cortado a máquina", pack: "Paquete 190 g", price: 10.26, img: MIMG("49463ba5be44bdee24435f9175d659a9") },
+  { name: "Patatas bravas con allioli y salsa picante Hacendado", pack: "Bandeja 470 g", price: 2.60, img: MIMG("056909a7135c2afefc8b00e80e9bc762") },
+  { name: "Cerveza Heineken", pack: "Pack 8 latas", price: 5.60, img: MIMG("ac9beb775783dc374e1eb6c07c5d2887") },
+  { name: "Vinagre de vino blanco Hacendado", pack: "Botella 1 L", price: 0.65, img: MIMG("44c1552cc9f3945d63d01565d313846c") },
+  { name: "Lasaña boloñesa familiar Hacendado", pack: "Bandeja 700 g", price: 4.90, img: MIMG("5ce44300c7eb0b957d6f621704622aab") },
+  { name: "Callos a la madrileña Hacendado", pack: "Lata 380 g", price: 2.45, img: MIMG("51212c7d966e91e80bf142ed388ecbb0") },
+  { name: "Sándwiches de jamón y queso Hacendado", pack: "Paquete de 4", price: 2.80, img: MIMG("80c29413b6077115dba5999bfa2b6bb9") },
+  { name: "Queso curado mezcla Hacendado", pack: "Pieza entera 1,63 kg", price: 18.06, img: MIMG("1937043ae309b399e4cd49c262927674") },
+  { name: "Aceite de oliva 0,4º Hacendado", pack: "Garrafa 5 L", price: 18.75, img: MIMG("3b8cde7b3cb069ee0316029012cf8562") },
+];
+
 const $ = (id) => document.getElementById(id);
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -609,11 +678,13 @@ async function pull({ manual = false } = {}) {
     quiz = normalizeQuiz(root.quiz);   // los juegos en vivo se sincronizan siempre, no pasan por Publicar
     geoGame.data = normalizeGeo(root.geo);
     swGame.data = normalizeGeo(root.sw);
+    precio = normalizeGeo(root.precio);
     setOnline(true);
     if (dirty) {
       // no machacar ediciones locales del MC; solo recordar qué hay fuera
       renderDuelo();
       renderPinGames();
+      renderPrecio();
       if (manual) toast("Tienes cambios sin publicar — no se ha sobrescrito");
       return;
     }
@@ -698,6 +769,7 @@ function render() {
   renderRetos();
   renderDuelo();
   renderPinGames();
+  renderPrecio();
   renderMc();
   updatePubbar();
 }
@@ -1386,6 +1458,196 @@ const swGame = makePinGame({ node: "sw", ids: "sw", bank: SW_BANK, mode: "galaxy
 
 function renderPinGames() { geoGame.render(); swGame.render(); }
 
+/* ===================== El Precio Justo · Mercadona ===================== */
+let precio = normalizeGeo(null);
+let precioEcho = null; // último envío propio, para que un poll rezagado no lo borre en pantalla
+const precioView = { roundKey: "" };
+const fmtEur = (n) => n.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+const precioUrl = (path) => dbBase() + "/precio" + path + ".json";
+const precioAnswers = () => precio.answers[precio.qIndex] || {};
+
+async function precioWrite(path, value, method = "PUT") {
+  const res = await fetch(precioUrl(path), {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(value),
+  });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+}
+
+async function precioAction(value, method) {
+  try {
+    await precioWrite("", value, method);
+    await pull();
+  } catch (e) {
+    setOnline(false);
+    toast("Sin conexión — reintenta");
+  }
+}
+
+function parsePrice(s) {
+  const n = parseFloat(String(s).trim().replace(",", "."));
+  if (!Number.isFinite(n) || n <= 0 || n > 500) return null;
+  return Math.round(n * 100) / 100;
+}
+
+async function sendPrecio() {
+  if (precio.status !== "open") return;
+  if (!myPlayerId) { toast("Únete al marcador para jugar 🙋"); return; }
+  const n = parsePrice($("precioGuess").value);
+  if (n === null) { toast("Pon un precio válido, p. ej. 2,50"); return; }
+  if (!precio.answers[precio.qIndex]) precio.answers[precio.qIndex] = {};
+  precio.answers[precio.qIndex][myPlayerId] = n;
+  precioEcho = { q: precio.qIndex, v: n, until: Date.now() + 6000 }; // un poll viejo no debe "des-enviar" visualmente
+  renderPrecioStatus();
+  try {
+    await precioWrite(`/answers/${precio.qIndex}/${myPlayerId}`, n);
+    toast(`Precio enviado: ${fmtEur(n)}`);
+  } catch (e) {
+    toast("No se ha podido enviar — dale otra vez");
+  }
+}
+$("precioSend").onclick = sendPrecio;
+$("precioGuess").addEventListener("keydown", e => { if (e.key === "Enter") sendPrecio(); });
+
+function renderPrecioStatus() {
+  const st = $("precioStatus");
+  if (precio.status !== "open") { st.textContent = ""; return; }
+  let mine = precioAnswers()[myPlayerId];
+  if (mine == null && precioEcho && precioEcho.q === precio.qIndex && Date.now() < precioEcho.until) mine = precioEcho.v;
+  if (!myPlayerId) { st.className = "geostatus"; st.textContent = "Únete al marcador para poder jugar 🙋"; }
+  else if (mine != null) { st.className = "geostatus ok"; st.textContent = `💶 Enviado: ${fmtEur(mine)} — puedes cambiarlo hasta que el MC cierre`; }
+  else { st.className = "geostatus"; st.textContent = "Escribe tu precio y dale a Enviar 👆"; }
+}
+
+function renderPrecio() {
+  const q = PRECIO_BANK[precio.qIndex];
+  const showQ = (precio.status === "open" || precio.status === "revealed") && q;
+  $("precioIdle").style.display = precio.status === "idle" ? "block" : "none";
+  $("precioQuestion").style.display = showQ ? "block" : "none";
+  $("precioFinished").style.display = precio.status === "finished" ? "block" : "none";
+
+  const totalsEl = $("precioTotals");
+  const totals = Object.entries(precio.totals || {});
+  if (precio.status !== "idle" && totals.length) {
+    totalsEl.style.display = "flex";
+    totalsEl.innerHTML = totals.sort((a, b) => b[1] - a[1]).slice(0, 5).map(([pid, pts]) => {
+      const p = state.players.find(x => x.id === pid);
+      return `<span>${esc(p ? p.name : "?")} <b>${pts}</b></span>`;
+    }).join("");
+  } else totalsEl.style.display = "none";
+
+  if (showQ) {
+    $("precioMeta").textContent = `Producto ${precio.qIndex + 1} de ${PRECIO_BANK.length}`;
+    $("precioImg").src = q.img;
+    $("precioText").textContent = q.name + " · " + q.pack;
+    const revealed = precio.status === "revealed";
+    $("precioInputRow").style.display = revealed ? "none" : "flex";
+
+    // al cambiar de ronda, restaurar mi precio enviado (sin pisar lo que esté escribiendo)
+    const rk = precio.status + ":" + precio.qIndex;
+    if (precioView.roundKey !== rk) {
+      precioView.roundKey = rk;
+      const mine = precioAnswers()[myPlayerId];
+      $("precioGuess").value = mine != null ? String(mine).replace(".", ",") : "";
+    }
+
+    if (revealed && precio.lastResult) {
+      $("precioPvp").style.display = "block";
+      $("precioPvp").textContent = "PVP: " + fmtEur(precio.lastResult.price);
+      const medals = ["🥇", "🥈", "🥉"];
+      $("precioResults").innerHTML = (precio.lastResult.list || []).map((e, i) =>
+        `<div class="grow"><span>${medals[i] || (i + 1) + "º"}</span><span class="gname">${esc(e.name)}</span>` +
+        `<span class="gdist">${fmtEur(e.guess)} (±${fmtEur(e.diff)})</span><span class="gpts">${e.pts ? "+1" : ""}</span></div>`
+      ).join("") || "<div class='empty'>Nadie puso precio 😴</div>";
+    } else {
+      $("precioPvp").style.display = "none";
+      $("precioResults").innerHTML = "";
+    }
+    renderPrecioStatus();
+  }
+
+  if (precio.status === "finished") {
+    const ranking = Object.entries(precio.totals || {}).sort((a, b) => b[1] - a[1]);
+    const medals = ["🥇", "🥈", "🥉"];
+    $("precioFinal").innerHTML = ranking.length
+      ? ranking.map(([pid, pts], i) => {
+          const p = state.players.find(x => x.id === pid);
+          return `<div>${medals[i] || (i + 1) + "º"} ${esc(p ? p.name : "?")} — <b>${pts} ${pts === 1 ? "producto" : "productos"}</b></div>`;
+        }).join("") + "<div style='margin-top:10px;color:var(--muted);font-size:.85rem'>El MC pasa estos puntos al Marcador 🏆</div>"
+      : "Nadie ha puntuado 😅";
+  }
+
+  renderPrecioMc();
+}
+
+function renderPrecioMc() {
+  const box = $("precioMc");
+  box.style.display = mcMode ? "flex" : "none";
+  if (!mcMode) return;
+  box.innerHTML = "<div class='mctitle'>🎤 CONTROLES DEL MC</div>";
+  const info = document.createElement("div");
+  info.className = "mcinfo";
+  const btns = document.createElement("div");
+  btns.className = "mcbtns";
+  const addBtn = (label, cls, fn) => {
+    const b = document.createElement("button");
+    b.className = "smallbtn " + cls;
+    b.textContent = label;
+    b.onclick = fn;
+    btns.appendChild(b);
+  };
+
+  if (precio.status === "idle") {
+    info.textContent = `${PRECIO_BANK.length} productos cargados, precios reales de hoy.`;
+    addBtn("▶ Empezar El Precio Justo", "green", () =>
+      precioAction({ status: "open", qIndex: 0, answers: null, totals: null, lastResult: null }, "PUT"));
+  }
+  if (precio.status === "open") {
+    const ans = precioAnswers();
+    const con = state.players.filter(p => ans[p.id] != null).length;
+    info.textContent = `${con}/${state.players.length} han puesto precio.`;
+    addBtn("👁 Revelar PVP", "", precioReveal);
+  }
+  if (precio.status === "revealed") {
+    const last = precio.qIndex >= PRECIO_BANK.length - 1;
+    info.textContent = last ? "Era el último producto." : "Cuando estés listo, siguiente producto.";
+    if (!last) addBtn("⏭ Siguiente", "green", () =>
+      precioAction({ status: "open", qIndex: precio.qIndex + 1, lastResult: null }, "PATCH"));
+    addBtn("🏁 Terminar", last ? "green" : "gray", () => precioAction({ status: "finished" }, "PATCH"));
+  }
+  if (precio.status !== "idle") {
+    addBtn("⟲ Reiniciar El Precio Justo", "gray", () => {
+      if (!confirm("¿Borrar El Precio Justo entero (precios y puntos)?")) return;
+      precioAction({ status: "idle" }, "PUT");
+    });
+  }
+  box.appendChild(info);
+  box.appendChild(btns);
+}
+
+async function precioReveal() {
+  const q = PRECIO_BANK[precio.qIndex];
+  // precios de última hora
+  try {
+    const res = await fetch(precioUrl(`/answers/${precio.qIndex}`), { cache: "no-store" });
+    if (res.ok) {
+      const fresh = await res.json();
+      if (fresh) precio.answers[precio.qIndex] = fresh;
+    }
+  } catch (_) {}
+  const ans = precioAnswers();
+  const list = state.players
+    .filter(p => Number.isFinite(ans[p.id]))
+    .map(p => ({ pid: p.id, name: p.name, guess: ans[p.id], diff: Math.round(Math.abs(ans[p.id] - q.price) * 100) / 100 }))
+    .sort((a, b) => a.diff - b.diff);
+  const minDiff = list.length ? list[0].diff : null;
+  const scored = list.map(e => ({ ...e, pts: e.diff === minDiff ? 1 : 0 })); // empates comparten el punto
+  const totals = { ...precio.totals };
+  scored.forEach(e => { if (e.pts) totals[e.pid] = (totals[e.pid] || 0) + 1; });
+  await precioAction({ status: "revealed", totals, lastResult: { n: scored.length, price: q.price, list: scored } }, "PATCH");
+}
+
 /* reproductor del vídeo de loading screens (carga perezosa, controlado por postMessage) */
 let swPlayerLoaded = false;
 let swPauseTimer = null;
@@ -1578,18 +1840,20 @@ $("newRetoTitle").addEventListener("keydown", e => { if (e.key === "Enter") $("a
 
 /* ===================== tabs / botones ===================== */
 function showTab(name) {
-  ["Marcador", "Pruebas", "Duelo", "Geo", "Sw"].forEach(t => {
+  ["Marcador", "Pruebas", "Duelo", "Geo", "Sw", "Precio"].forEach(t => {
     $("tab" + t).classList.toggle("active", name === t);
     $("view" + t).classList.toggle("active", name === t);
   });
   if (name === "Geo") geoGame.onShow();
   if (name === "Sw") { loadSwPlayer(); swGame.onShow(); }
+  if (name === "Precio") renderPrecio();
 }
 $("tabMarcador").onclick = () => showTab("Marcador");
 $("tabPruebas").onclick = () => showTab("Pruebas");
 $("tabDuelo").onclick = () => showTab("Duelo");
 $("tabGeo").onclick = () => showTab("Geo");
 $("tabSw").onclick = () => showTab("Sw");
+$("tabPrecio").onclick = () => showTab("Precio");
 $("refreshBtn").onclick = () => pull({ manual: true });
 $("publishBtn").onclick = publish;
 
@@ -1616,7 +1880,7 @@ render();
 pull();
 // con una pregunta o ronda abierta el sondeo se acelera
 (function schedulePoll() {
-  const live = [quiz.status, geoGame.data.status, swGame.data.status].some(s => s === "open" || s === "revealed");
+  const live = [quiz.status, geoGame.data.status, swGame.data.status, precio.status].some(s => s === "open" || s === "revealed");
   setTimeout(async () => {
     await pull();
     schedulePoll();
