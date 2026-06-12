@@ -220,16 +220,19 @@
     background: #0b0e1a; border: 1px solid #222c4a;
     text-transform: uppercase; letter-spacing: 1.5px;
   }
-  .franja { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
-  .franjalabels {
-    display: flex; justify-content: space-between; align-items: center;
-    color: var(--muted); font-size: .78rem; font-weight: 700; letter-spacing: 1px;
+  .swframe { position: relative; }
+  #swOverlay { position: absolute; inset: 0; display: none; }
+  #swOverlay.active { display: block; cursor: crosshair; }
+  #swMarker, #swLockLine { position: absolute; display: none; pointer-events: none; }
+  #swMarker { background: #7fdcff; box-shadow: 0 0 9px #7fdcff; }
+  #swLockLine { background: #FFE81F; box-shadow: 0 0 9px #FFE81F; }
+  .swframe .vline { top: 0; bottom: 0; width: 2px; }
+  .swframe .hline { left: 0; right: 0; height: 2px; }
+  #swActivate {
+    position: absolute; inset: 0; width: 100%; background: rgba(0,0,0,.55);
+    border: none; color: #FFE81F; font-size: 1.1rem; font-weight: 800;
+    letter-spacing: 2px; cursor: pointer; border-radius: 12px;
   }
-  .franjalabels b { color: #FFE81F; font-size: 1.3rem; }
-  .franja input[type="range"] {
-    width: 100%; height: 34px; accent-color: #FFE81F; cursor: pointer;
-  }
-  .franja .smallbtn { width: 100%; padding: 13px; }
 
   /* ---------- precio justo ---------- */
   .precioimg {
@@ -426,7 +429,11 @@
     <div class="swtitle">STAR WARS</div>
     <div class="swsub">LA AMENAZA BOGU</div>
     <div class="swvideo">
-      <video id="swVid" playsinline preload="auto"></video>
+      <div class="swframe">
+        <video id="swVid" playsinline preload="auto"></video>
+        <div id="swOverlay"><div id="swMarker"></div><div id="swLockLine"></div></div>
+        <button id="swActivate" style="display:none">▶ TOCA PARA ACTIVAR</button>
+      </div>
       <button class="smallbtn gray" id="swMusicBtn">🎵 Música: OFF</button>
     </div>
     <audio id="swMusic" src="media/battlefront.mp3" loop preload="none"></audio>
@@ -435,11 +442,6 @@
     <div id="swQuestion" style="display:none">
       <div class="qmeta" id="swMeta"></div>
       <div class="qcard swq" id="swText"></div>
-      <div class="franja" id="swFranja">
-        <div class="franjalabels"><span id="swLab0">⬅ IZQUIERDA</span><b id="swPct">50</b><span id="swLab1">DERECHA ➡</span></div>
-        <input id="swRange" type="range" min="0" max="100" value="50">
-        <button id="swSend" class="smallbtn green">🎯 Enviar posición</button>
-      </div>
       <div class="geostatus" id="swStatus"></div>
       <div class="preciopvp" id="swLockShow" style="display:none"></div>
       <div class="georesults" id="swResults"></div>
@@ -1521,23 +1523,44 @@ async function swAction(value, method) {
   }
 }
 
-async function sendSw() {
+function swPlaceLine(el, axis, pct) {
+  el.className = axis === "v" ? "vline" : "hline";
+  el.style.display = "block";
+  if (axis === "v") { el.style.left = pct + "%"; el.style.top = ""; }
+  else { el.style.top = pct + "%"; el.style.left = ""; }
+}
+const swHideLine = (el) => { el.style.display = "none"; };
+
+async function sendSw(n) {
   if (sw.status !== "open") return;
   if (!myPlayerId) { toast("Únete al marcador para jugar 🙋"); return; }
-  const n = Math.max(0, Math.min(100, parseInt($("swRange").value, 10) || 0));
   if (!sw.answers[sw.qIndex]) sw.answers[sw.qIndex] = {};
   sw.answers[sw.qIndex][myPlayerId] = n;
   swEcho = { q: sw.qIndex, v: n, until: Date.now() + 6000 };
   renderSwStatus();
   try {
     await swWrite(`/answers/${sw.qIndex}/${myPlayerId}`, n);
-    toast(`🎯 Posición enviada: ${n}%`);
+    toast(`🎯 Apuesta: ${n}%`);
   } catch (e) {
-    toast("No se ha podido enviar — dale otra vez");
+    toast("No se ha podido enviar — toca otra vez");
   }
 }
-$("swSend").onclick = sendSw;
-$("swRange").oninput = () => { $("swPct").textContent = $("swRange").value; };
+
+$("swOverlay").onclick = (e) => {
+  if (sw.status !== "open") return;
+  const q = SW_SCREENS[sw.qIndex];
+  if (!q) return;
+  const r = $("swOverlay").getBoundingClientRect();
+  const frac = q.axis === "v" ? (e.clientX - r.left) / r.width : (e.clientY - r.top) / r.height;
+  const n = Math.max(0, Math.min(100, Math.round(frac * 100)));
+  swPlaceLine($("swMarker"), q.axis, n);
+  sendSw(n);
+};
+
+$("swActivate").onclick = () => {
+  $("swActivate").style.display = "none";
+  swVid.play().catch(() => {});
+};
 
 function renderSwStatus() {
   const st = $("swStatus");
@@ -1545,8 +1568,8 @@ function renderSwStatus() {
   let mine = swAnswers()[myPlayerId];
   if (mine == null && swEcho && swEcho.q === sw.qIndex && Date.now() < swEcho.until) mine = swEcho.v;
   if (!myPlayerId) { st.className = "geostatus"; st.textContent = "Únete al marcador para poder jugar 🙋"; }
-  else if (mine != null) { st.className = "geostatus ok"; st.textContent = `🎯 Enviado: ${mine}% — puedes cambiarlo hasta que el MC le dé`; }
-  else { st.className = "geostatus"; st.textContent = "Mueve la franja y dale a Enviar 👆"; }
+  else if (mine != null) { st.className = "geostatus ok"; st.textContent = `🎯 Apuesta en el ${mine}% — toca otra vez para cambiarla`; }
+  else { st.className = "geostatus"; st.textContent = "Toca DENTRO del vídeo donde se clavará la línea 👆"; }
 }
 
 function renderSw() {
@@ -1555,6 +1578,7 @@ function renderSw() {
   $("swIdle").style.display = sw.status === "idle" ? "block" : "none";
   $("swQuestion").style.display = showQ ? "block" : "none";
   $("swFinished").style.display = sw.status === "finished" ? "block" : "none";
+  if (!showQ || sw.status !== "open") $("swOverlay").classList.remove("active");
 
   const totalsEl = $("swTotals");
   const totals = Object.entries(sw.totals || {});
@@ -1566,29 +1590,27 @@ function renderSw() {
     }).join("");
   } else totalsEl.style.display = "none";
 
-  // sincronizar el vídeo cuando cambia la ronda o el estado (también con la pestaña cerrada)
+  // sincronizar vídeo y líneas cuando cambia la ronda o el estado (también con la pestaña cerrada)
   const rk = sw.status + ":" + sw.qIndex;
   if (swView.roundKey !== rk) {
     swView.roundKey = rk;
     syncSwVideo();
-    if (showQ && sw.status === "open") {
-      const mine = swAnswers()[myPlayerId];
-      $("swRange").value = mine != null ? mine : 50;
-      $("swPct").textContent = $("swRange").value;
-    }
+    swHideLine($("swLockLine"));
+    const mine = swAnswers()[myPlayerId];
+    if (q && mine != null) swPlaceLine($("swMarker"), q.axis, mine);
+    else swHideLine($("swMarker"));
+    if (q && sw.status === "revealed" && sw.lastResult) swPlaceLine($("swLockLine"), q.axis, sw.lastResult.lock);
   }
 
   if (showQ) {
     const screenNo = (sw.qIndex % 3) + 1;
     $("swMeta").textContent = `${q.planet} · pantalla ${screenNo}/3 — ${q.label}`;
     const revealed = sw.status === "revealed";
-    $("swText").textContent = q.axis === "h"
-      ? "Franja VERTICAL: ¿a qué altura se clavará la mira?"
-      : "Franja HORIZONTAL: ¿dónde se clavará la mira?";
+    $("swText").textContent = q.axis === "v"
+      ? "¿Dónde se clavará la línea VERTICAL? Toca el vídeo (izq ↔ der)"
+      : "¿Dónde se clavará la línea HORIZONTAL? Toca el vídeo (arriba ↕ abajo)";
     $("swText").style.color = q.color || "";
-    $("swLab0").textContent = q.axis === "h" ? "⬆ ARRIBA" : "⬅ IZQUIERDA";
-    $("swLab1").textContent = q.axis === "h" ? "ABAJO ⬇" : "DERECHA ➡";
-    $("swFranja").style.display = revealed ? "none" : "flex";
+    $("swOverlay").classList.toggle("active", sw.status === "open");
 
     if (revealed && sw.lastResult) {
       $("swLockShow").style.display = "block";
@@ -1900,7 +1922,7 @@ function syncSwVideo() {
   if (sw.status === "revealed") {
     swMusic.pause(); // que se oiga el purupupu limpio
     try { swVid.currentTime = 0; } catch (_) {}
-    swVid.play().catch(() => toast("Toca el play del vídeo ▶ (solo la primera vez)"));
+    swVid.play().catch(() => { $("swActivate").style.display = "block"; });
   } else {
     swVid.pause();
     if (sw.status === "open" && swMusicOn) swMusic.play().catch(() => {});
