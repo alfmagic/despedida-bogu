@@ -375,7 +375,7 @@
   <!-- ===== GEOBOGU ===== -->
   <section id="viewGeo" class="view">
     <div class="geototals" id="geoTotals" style="display:none"></div>
-    <div id="geoIdle" class="empty">📍 GeoBogu aún no ha empezado.<br>Lugares de la vida de Bogu — deja tu pin lo más cerca posible.</div>
+    <div id="geoIdle" class="empty">📍 GeoBogu aún no ha empezado.<br>Lugares de la vida de Bogu — deja tu pin: cuanto más cerca, más puntos (máx 1000).</div>
     <div id="geoQuestion" style="display:none">
       <div class="qmeta" id="geoMeta"></div>
       <div class="qcard" id="geoText"></div>
@@ -396,7 +396,7 @@
     <div class="swsub">LA AMENAZA BOGU</div>
     <div class="swplayer" id="swPlayer"></div>
     <div class="geototals" id="swTotals" style="display:none"></div>
-    <div id="swIdle" class="empty">Hace mucho tiempo, en una galaxia muy, muy lejana…<br><br>Las loading screens del Battlefront vuelven: cada planeta, su pantalla. Dale al play 🎵 y deja tu pin en el mapa galáctico.</div>
+    <div id="swIdle" class="empty">Hace mucho tiempo, en una galaxia muy, muy lejana…<br><br>Las loading screens del Battlefront, las de verdad: en cada ronda el vídeo salta solo a la pantalla de ese planeta y se pausa. Deja tu pin en el mapa galáctico — cuanto más cerca, más puntos (máx 1000).<br><br>▶ Dale al play al vídeo UNA vez al empezar; a partir de ahí va solo.</div>
     <div id="swQuestion" style="display:none">
       <div class="qmeta" id="swMeta"></div>
       <div class="qcard swq" id="swText"></div>
@@ -517,16 +517,15 @@ const GEO_BANK = [
   { text: "☀️ El otro veraneo de Bogu", lat: 36.45949, lng: -5.04551, label: "Costalita, Estepona (Málaga)" },
 ];
 
-/* STAR WARS: LA AMENAZA BOGU — cada planeta, su loading screen (coords = casillas del mapa canon) */
+/* STAR WARS: LA AMENAZA BOGU — cada planeta, su loading screen real del vídeo (t = segundo del vídeo) */
 const SW_BANK = [
-  { galaxy: true, text: "¿Dónde está HOTH?", lat: 167, lng: 477, label: "Hoth (K-18)", sub: "La Batalla de Hoth · base Eco", color: "#9fd8ff" },
-  { galaxy: true, text: "¿Dónde está TATOOINE?", lat: 262, lng: 795, label: "Tatooine (R-16)", sub: "Dunas de Mos Eisley", color: "#ffd27a" },
-  { galaxy: true, text: "¿Dónde está ENDOR?", lat: 262, lng: 341, label: "Endor (H-16)", sub: "La luna de los ewoks", color: "#8fd694" },
-  { galaxy: true, text: "¿Dónde está NABOO?", lat: 215, lng: 659, label: "Naboo (O-17)", sub: "Las llanuras de Theed", color: "#7fe0c3" },
-  { galaxy: true, text: "¿Dónde está KAMINO?", lat: 310, lng: 841, label: "Kamino (S-15)", sub: "Tipoca City, ciudad de los clones", color: "#8fa8ff" },
-  { galaxy: true, text: "¿Dónde está YAVIN 4?", lat: 738, lng: 704, label: "Yavin 4 (P-6)", sub: "Los templos massassi", color: "#ffb36b" },
+  { galaxy: true, text: "¿Dónde está ENDOR?", lat: 262, lng: 341, label: "Endor (H-16)", sub: "La luna de los ewoks", color: "#8fd694", t: 29, dur: 12 },
+  { galaxy: true, text: "¿Dónde está HOTH?", lat: 167, lng: 477, label: "Hoth (K-18)", sub: "La Batalla de Hoth · base Eco", color: "#9fd8ff", t: 57, dur: 12 },
+  { galaxy: true, text: "¿Dónde está KAMINO?", lat: 310, lng: 841, label: "Kamino (S-15)", sub: "Tipoca City, ciudad de los clones", color: "#8fa8ff", t: 69, dur: 12 },
+  { galaxy: true, text: "¿Dónde está NABOO?", lat: 215, lng: 659, label: "Naboo (O-17)", sub: "Las llanuras de Theed", color: "#7fe0c3", t: 110, dur: 12 },
+  { galaxy: true, text: "¿Dónde está TATOOINE?", lat: 262, lng: 795, label: "Tatooine (R-16)", sub: "Dunas de Mos Eisley", color: "#ffd27a", t: 164, dur: 12 },
+  { galaxy: true, text: "¿Dónde está YAVIN 4?", lat: 738, lng: 704, label: "Yavin 4 (P-6)", sub: "Los templos massassi", color: "#ffb36b", t: 190, dur: 13 },
 ];
-const GEO_PTS = [5, 3, 1]; // puntos para los 3 pins más cercanos
 const PARSECS_PER_UNIT = 37; // el mapa galáctico mide ~37.000 pársecs de punta a punta
 
 /* ===================== estado ===================== */
@@ -1085,6 +1084,8 @@ const roundDist = (q, a) => q.galaxy
 const fmtDist = (d, galaxy) => galaxy
   ? Math.round(d).toLocaleString("es-ES") + " pársecs"
   : (d < 1 ? Math.round(d * 1000) + " m" : (d < 10 ? d.toFixed(1) : Math.round(d).toLocaleString("es-ES")) + " km");
+/* puntuación estilo GeoGuessr: cuanto más cerca, más puntos (máx 1000, decae con la distancia) */
+const distPoints = (d) => Math.max(0, Math.round(1000 - 140 * Math.log(1 + d)));
 function emojiIcon(emoji) {
   return L.divIcon({ html: `<span class="pinemoji">${emoji}</span>`, className: "", iconSize: [26, 26], iconAnchor: [13, 24] });
 }
@@ -1134,7 +1135,7 @@ const GALAXY_BOUNDS = [[0, 0], [1000, 1000]];
 /* Motor de juego de pins, parametrizable: GeoBogu (mundo real) y La Amenaza Bogu (galaxia) */
 function makePinGame(cfg) {
   const g = { data: normalizeGeo(null) };
-  const view = { map: null, myMarker: null, revealLayers: [], key: "" };
+  const view = { map: null, myMarker: null, revealLayers: [], key: "", roundKey: "" };
   const el = (s) => $(cfg.ids + s);
   const nodeUrl = (path) => dbBase() + "/" + cfg.node + path + ".json";
   const answers = () => g.data.answers[g.data.qIndex] || {};
@@ -1224,6 +1225,13 @@ function makePinGame(cfg) {
   g.render = function () {
     const q = cfg.bank[g.data.qIndex];
     const showQ = (g.data.status === "open" || g.data.status === "revealed") && q;
+
+    // avisar del cambio de ronda aunque el mapa/pestaña no se haya abierto aún (p. ej. control del vídeo)
+    const rk = g.data.status + ":" + g.data.qIndex;
+    if (view.roundKey !== rk) {
+      view.roundKey = rk;
+      if (cfg.onRound) cfg.onRound();
+    }
     el("Idle").style.display = g.data.status === "idle" ? "block" : "none";
     el("Question").style.display = showQ ? "block" : "none";
     el("Finished").style.display = g.data.status === "finished" ? "block" : "none";
@@ -1353,7 +1361,7 @@ function makePinGame(cfg) {
       .filter(p => ans[p.id])
       .map(p => ({ pid: p.id, name: p.name, lat: ans[p.id].lat, lng: ans[p.id].lng, dist: roundDist(q, ans[p.id]) }))
       .sort((a, b) => a.dist - b.dist)
-      .map((e, i) => ({ ...e, dist: +e.dist.toFixed(3), pts: GEO_PTS[i] || 0 }));
+      .map(e => ({ ...e, dist: +e.dist.toFixed(3), pts: distPoints(q.galaxy ? e.dist / PARSECS_PER_UNIT : e.dist) }));
     const totals = { ...g.data.totals };
     list.forEach(e => { if (e.pts) totals[e.pid] = (totals[e.pid] || 0) + e.pts; });
     // n siempre presente: Firebase descarta arrays vacíos y perderíamos lastResult
@@ -1370,17 +1378,45 @@ function makePinGame(cfg) {
 }
 
 const geoGame = makePinGame({ node: "geo", ids: "geo", bank: GEO_BANK, mode: "world", title: "GeoBogu", unit: "Lugar" });
-const swGame = makePinGame({ node: "sw", ids: "sw", bank: SW_BANK, mode: "galaxy", title: "la Amenaza", unit: "Planeta" });
+const swGame = makePinGame({ node: "sw", ids: "sw", bank: SW_BANK, mode: "galaxy", title: "la Amenaza", unit: "Planeta", onRound: () => syncSwVideo() });
 
 function renderPinGames() { geoGame.render(); swGame.render(); }
 
-/* reproductor de la música del Battlefront (carga perezosa) */
+/* reproductor del vídeo de loading screens (carga perezosa, controlado por postMessage) */
 let swPlayerLoaded = false;
+let swPauseTimer = null;
+
 function loadSwPlayer() {
   if (swPlayerLoaded) return;
   swPlayerLoaded = true;
-  $("swPlayer").innerHTML = '<iframe src="https://www.youtube.com/embed/wjVGjDoX3JQ?loop=1&playlist=wjVGjDoX3JQ" ' +
-    'title="Battlefront loading music" allow="autoplay; encrypted-media" allowfullscreen></iframe>';
+  const f = document.createElement("iframe");
+  f.src = "https://www.youtube.com/embed/wjVGjDoX3JQ?enablejsapi=1&playsinline=1&rel=0";
+  f.title = "Battlefront loading screens";
+  f.allow = "autoplay; encrypted-media";
+  f.allowFullscreen = true;
+  f.onload = () => setTimeout(syncSwVideo, 1200); // si ya hay ronda abierta, saltar a su pantalla
+  $("swPlayer").appendChild(f);
+}
+
+function swCmd(func, args) {
+  const f = document.querySelector("#swPlayer iframe");
+  if (!f) return;
+  f.contentWindow.postMessage(JSON.stringify({ event: "command", func, args: args || [] }), "*");
+}
+
+function syncSwVideo() {
+  const d = swGame.data;
+  const q = SW_BANK[d.qIndex];
+  clearTimeout(swPauseTimer);
+  if (!q || !swPlayerLoaded) return;
+  if (d.status === "open") {
+    swCmd("seekTo", [q.t, true]);
+    swCmd("playVideo");
+    // …y que vaya parando: se detiene solo en la pantalla de carga de este planeta
+    swPauseTimer = setTimeout(() => swCmd("pauseVideo"), (q.dur || 12) * 1000);
+  } else if (d.status === "revealed" || d.status === "finished" || d.status === "idle") {
+    swCmd("pauseVideo");
+  }
 }
 
 /* ===================== modo MC ===================== */
