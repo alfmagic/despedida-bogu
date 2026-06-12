@@ -528,18 +528,22 @@ const SW_BANK = [
 ];
 const PARSECS_PER_UNIT = 37; // el mapa galáctico mide ~37.000 pársecs de punta a punta
 
+const $ = (id) => document.getElementById(id);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+// localStorage puede lanzar en modo privado de navegadores antiguos
+const lsGet = (k) => { try { return localStorage.getItem(k); } catch (_) { return null; } };
+const lsSet = (k, v) => { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (_) {} };
+
 /* ===================== estado ===================== */
 let state = { updatedAt: 0, players: [], retos: [] };
 let quiz = { status: "idle", qIndex: 0, boguId: "", answers: {}, score: { masa: 0, bogu: 0 }, lastResult: null };
-let mcMode = localStorage.getItem("mcMode") === "1";
-let myPlayerId = localStorage.getItem("myPlayerId") || "";
+let mcMode = lsGet("mcMode") === "1";
+let myPlayerId = lsGet("myPlayerId") || "";
 let dirty = false;          // cambios locales sin publicar
 let deletedIds = new Set(); // jugadores borrados por el MC pendientes de publicar
 let lastSyncedAt = 0;       // updatedAt remoto que tenemos aplicado/visto
 let online = null;
-
-const $ = (id) => document.getElementById(id);
-const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
 const isImgAvatar = (av) => typeof av === "string" && av.startsWith("img:");
 function avatarNode(av) {
@@ -618,7 +622,7 @@ async function pull({ manual = false } = {}) {
     // si el MC borró mi jugador (o se reinició el marcador), permitir unirse de nuevo
     if (myPlayerId && !state.players.some(p => p.id === myPlayerId)) {
       myPlayerId = "";
-      localStorage.removeItem("myPlayerId");
+      lsSet("myPlayerId", null);
     }
     render();
     if (manual) toast("Actualizado ✔");
@@ -918,7 +922,7 @@ function renderDuelo() {
     const hint = $("qHint");
     if (revealed && r) {
       $("qResult").style.display = "block";
-      const boguName = bogu ? bogu.name : "Bogu";
+      const boguName = esc(bogu ? bogu.name : "Bogu");
       const lines = [];
       lines.push(r.masaChoice < 0
         ? "🧠 La Masa no se ha puesto de acuerdo (empate) — el caos no puntúa."
@@ -1242,7 +1246,7 @@ function makePinGame(cfg) {
       totalsEl.style.display = "flex";
       totalsEl.innerHTML = totals.sort((a, b) => b[1] - a[1]).slice(0, 5).map(([pid, pts]) => {
         const p = state.players.find(x => x.id === pid);
-        return `<span>${p ? p.name : "?"} <b>${pts}</b></span>`;
+        return `<span>${esc(p ? p.name : "?")} <b>${pts}</b></span>`;
       }).join("");
     } else totalsEl.style.display = "none";
 
@@ -1280,7 +1284,7 @@ function makePinGame(cfg) {
       if (g.data.status === "revealed" && g.data.lastResult) {
         const medals = ["🥇", "🥈", "🥉"];
         res.innerHTML = (g.data.lastResult.list || []).map((e, i) =>
-          `<div class="grow"><span>${medals[i] || (i + 1) + "º"}</span><span class="gname">${e.name}</span>` +
+          `<div class="grow"><span>${medals[i] || (i + 1) + "º"}</span><span class="gname">${esc(e.name)}</span>` +
           `<span class="gdist">${fmtDist(e.dist, q.galaxy)}</span><span class="gpts">${e.pts ? "+" + e.pts : ""}</span></div>`
         ).join("") || "<div class='empty'>Nadie dejó pin 😴</div>";
       } else res.innerHTML = "";
@@ -1293,7 +1297,7 @@ function makePinGame(cfg) {
       el("Final").innerHTML = ranking.length
         ? ranking.map(([pid, pts], i) => {
             const p = state.players.find(x => x.id === pid);
-            return `<div>${medals[i] || (i + 1) + "º"} ${p ? p.name : "?"} — <b>${pts} pt</b></div>`;
+            return `<div>${medals[i] || (i + 1) + "º"} ${esc(p ? p.name : "?")} — <b>${pts} pt</b></div>`;
           }).join("") + "<div style='margin-top:10px;color:var(--muted);font-size:.85rem'>El MC pasa estos puntos al Marcador 🏆</div>"
         : "Nadie ha puntuado 😅";
     }
@@ -1358,7 +1362,7 @@ function makePinGame(cfg) {
     } catch (_) {}
     const ans = answers();
     const list = state.players
-      .filter(p => ans[p.id])
+      .filter(p => ans[p.id] && Number.isFinite(ans[p.id].lat) && Number.isFinite(ans[p.id].lng))
       .map(p => ({ pid: p.id, name: p.name, lat: ans[p.id].lat, lng: ans[p.id].lng, dist: roundDist(q, ans[p.id]) }))
       .sort((a, b) => a.dist - b.dist)
       .map(e => ({ ...e, dist: +e.dist.toFixed(3), pts: distPoints(q.galaxy ? e.dist / PARSECS_PER_UNIT : e.dist) }));
@@ -1495,7 +1499,7 @@ async function join() {
       body: JSON.stringify(Date.now()),
     });
     myPlayerId = player.id;
-    localStorage.setItem("myPlayerId", myPlayerId);
+    lsSet("myPlayerId", myPlayerId);
     $("joinModal").classList.remove("show");
     setOnline(true);
     await pull();
@@ -1519,7 +1523,7 @@ $("mcLink").onclick = () => {
     mcMode = false;
     dirty = false;
     deletedIds.clear();
-    localStorage.removeItem("mcMode");
+    lsSet("mcMode", null);
     pull();
     render();
   } else {
@@ -1536,7 +1540,7 @@ $("mcCodeInput").addEventListener("keydown", e => { if (e.key === "Enter") tryUn
 function tryUnlock() {
   if ($("mcCodeInput").value.trim().toUpperCase() === MC_CODE) {
     mcMode = true;
-    localStorage.setItem("mcMode", "1");
+    lsSet("mcMode", "1");
     $("mcModal").classList.remove("show");
     render();
     toast("Modo MC activado 🎤");
