@@ -214,7 +214,8 @@
     text-align: center; font-weight: 800; letter-spacing: 4px;
     color: #FFE81F; opacity: .85; font-size: .85rem; margin-bottom: 10px;
   }
-  .swplayer iframe { width: 100%; height: 90px; border: 0; border-radius: 10px; margin-bottom: 10px; display: block; }
+  .swvideo video { width: 100%; border-radius: 12px; display: block; background: #000; }
+  .swvideo .smallbtn { width: 100%; margin: 8px 0 10px; }
   .qcard.swq {
     background: #0b0e1a; border: 1px solid #222c4a;
     text-transform: uppercase; letter-spacing: 1.5px;
@@ -424,9 +425,13 @@
   <section id="viewSw" class="view">
     <div class="swtitle">STAR WARS</div>
     <div class="swsub">LA AMENAZA BOGU</div>
-    <div class="swplayer" id="swPlayer"></div>
+    <div class="swvideo">
+      <video id="swVid" playsinline preload="auto"></video>
+      <button class="smallbtn gray" id="swMusicBtn">🎵 Música: OFF</button>
+    </div>
+    <audio id="swMusic" src="media/battlefront.mp3" loop preload="none"></audio>
     <div class="geototals" id="swTotals" style="display:none"></div>
-    <div id="swIdle" class="empty">Hace mucho tiempo, en una galaxia muy, muy lejana…<br><br>Las loading screens del Battlefront, las de verdad: el vídeo se pausa en cada pantalla (3 por planeta) y tú apuestas EN QUÉ PUNTO de la franja se clavará la mira. Cuando el MC le dé, suena el purupupu y se revela. El más fino se lleva el punto.<br><br>▶ Dale al play al vídeo UNA vez al empezar; a partir de ahí va solo.</div>
+    <div id="swIdle" class="empty">Hace mucho tiempo, en una galaxia muy, muy lejana…<br><br>Las loading screens del Battlefront, las de verdad: en cada pantalla (3 por planeta) el vídeo se congela y tú apuestas EN QUÉ PUNTO de la franja se clavará la mira. Cuando el MC le dé, suena el purupupu y se revela. El más fino se lleva el punto.<br><br>🎵 Dale a Música para la banda sonora mientras apostáis.</div>
     <div id="swQuestion" style="display:none">
       <div class="qmeta" id="swMeta"></div>
       <div class="qcard swq" id="swText"></div>
@@ -579,25 +584,27 @@ const GEO_BANK = [
 /* STAR WARS: LA AMENAZA BOGU — el juego de la franja, fiel a las loading screens del vídeo.
    Por planeta 3 pantallas (galaxia→planeta→superficie); el vídeo se pausa en pauseAt, la revelación
    reproduce hasta playTo (el "purupupu" clava el punto). lock = % donde se clava en la franja. */
+/* Cada pantalla es un clip propio media/sw_NN.mp4 (índice = posición aquí); lock = % leído del
+   fotograma clavado a 720p. El clip congela en su primer frame y al revelar reproduce hasta el final. */
 const SW_SCREENS = [
-  { planet: "ENDOR", color: "#8fd694", label: "Galaxia", pauseAt: 28, playTo: 32, axis: "v", lock: 22 },
-  { planet: "ENDOR", color: "#8fd694", label: "Planeta", pauseAt: 32, playTo: 36, axis: "v", lock: 28 },
-  { planet: "ENDOR", color: "#8fd694", label: "Superficie", pauseAt: 36, playTo: 41, axis: "h", lock: 72 },
-  { planet: "HOTH", color: "#9fd8ff", label: "Galaxia", pauseAt: 56, playTo: 60, axis: "v", lock: 47 },
-  { planet: "HOTH", color: "#9fd8ff", label: "Planeta", pauseAt: 60, playTo: 64, axis: "h", lock: 63 },
-  { planet: "HOTH", color: "#9fd8ff", label: "Superficie", pauseAt: 64, playTo: 68, axis: "v", lock: 33 },
-  { planet: "KAMINO", color: "#8fa8ff", label: "Galaxia", pauseAt: 68, playTo: 72, axis: "v", lock: 52 },
-  { planet: "KAMINO", color: "#8fa8ff", label: "Planeta", pauseAt: 72, playTo: 76, axis: "h", lock: 48 },
-  { planet: "KAMINO", color: "#8fa8ff", label: "Superficie", pauseAt: 76, playTo: 81, axis: "h", lock: 92 },
-  { planet: "NABOO", color: "#7fe0c3", label: "Galaxia", pauseAt: 110, playTo: 114, axis: "v", lock: 48 },
-  { planet: "NABOO", color: "#7fe0c3", label: "Planeta", pauseAt: 114, playTo: 118, axis: "v", lock: 32 },
-  { planet: "NABOO", color: "#7fe0c3", label: "Superficie", pauseAt: 118, playTo: 122, axis: "h", lock: 57 },
-  { planet: "TATOOINE", color: "#ffd27a", label: "Galaxia", pauseAt: 164, playTo: 168, axis: "v", lock: 84 },
-  { planet: "TATOOINE", color: "#ffd27a", label: "Planeta", pauseAt: 168, playTo: 171, axis: "v", lock: 20 },
-  { planet: "TATOOINE", color: "#ffd27a", label: "Superficie", pauseAt: 171, playTo: 175, axis: "h", lock: 57 },
-  { planet: "YAVIN 4", color: "#ffb36b", label: "Galaxia", pauseAt: 190, playTo: 194, axis: "v", lock: 67 },
-  { planet: "YAVIN 4", color: "#ffb36b", label: "Planeta", pauseAt: 194, playTo: 198, axis: "v", lock: 27 },
-  { planet: "YAVIN 4", color: "#ffb36b", label: "Superficie", pauseAt: 198, playTo: 203, axis: "h", lock: 83 },
+  { planet: "ENDOR", color: "#8fd694", label: "Galaxia", axis: "v", lock: 19 },
+  { planet: "ENDOR", color: "#8fd694", label: "Planeta", axis: "v", lock: 45 },
+  { planet: "ENDOR", color: "#8fd694", label: "Superficie", axis: "h", lock: 47 },
+  { planet: "HOTH", color: "#9fd8ff", label: "Galaxia", axis: "v", lock: 30 },
+  { planet: "HOTH", color: "#9fd8ff", label: "Planeta", axis: "h", lock: 55 },
+  { planet: "HOTH", color: "#9fd8ff", label: "Superficie", axis: "v", lock: 37 },
+  { planet: "KAMINO", color: "#8fa8ff", label: "Galaxia", axis: "v", lock: 28 },
+  { planet: "KAMINO", color: "#8fa8ff", label: "Planeta", axis: "h", lock: 25 },
+  { planet: "KAMINO", color: "#8fa8ff", label: "Superficie", axis: "h", lock: 85 },
+  { planet: "NABOO", color: "#7fe0c3", label: "Galaxia", axis: "v", lock: 43 },
+  { planet: "NABOO", color: "#7fe0c3", label: "Planeta", axis: "v", lock: 22 },
+  { planet: "NABOO", color: "#7fe0c3", label: "Superficie", axis: "h", lock: 55 },
+  { planet: "TATOOINE", color: "#ffd27a", label: "Galaxia", axis: "v", lock: 40 },
+  { planet: "TATOOINE", color: "#ffd27a", label: "Planeta", axis: "v", lock: 13 },
+  { planet: "TATOOINE", color: "#ffd27a", label: "Superficie", axis: "h", lock: 55 },
+  { planet: "YAVIN 4", color: "#ffb36b", label: "Galaxia", axis: "v", lock: 51 },
+  { planet: "YAVIN 4", color: "#ffb36b", label: "Planeta", axis: "v", lock: 30 },
+  { planet: "YAVIN 4", color: "#ffb36b", label: "Superficie", axis: "h", lock: 72 },
 ];
 const PARSECS_PER_UNIT = 37; // el mapa galáctico mide ~37.000 pársecs de punta a punta
 
@@ -1630,7 +1637,7 @@ function renderSwMc() {
   };
 
   if (sw.status === "idle") {
-    info.textContent = `${SW_SCREENS.length} pantallas (6 planetas × 3). Recuerda: play al vídeo una vez antes de empezar.`;
+    info.textContent = `${SW_SCREENS.length} pantallas (6 planetas × 3). Si el vídeo no arranca en un móvil al revelar, un toque al play y listo.`;
     addBtn("▶ Empezar la Amenaza", "green", () =>
       swAction({ status: "open", qIndex: 0, answers: null, totals: null, lastResult: null }, "PUT"));
   }
@@ -1869,44 +1876,34 @@ async function precioReveal() {
   await precioAction({ status: "revealed", totals, lastResult: { n: scored.length, price: q.price, list: scored } }, "PATCH");
 }
 
-/* reproductor del vídeo de loading screens (carga perezosa, controlado por postMessage) */
-let swPlayerLoaded = false;
-let swPauseTimer = null;
+/* vídeo nativo: cada pantalla es su clip; congelado en el primer frame, al revelar se reproduce entero */
+const swVid = $("swVid");
+const swMusic = $("swMusic");
+let swMusicOn = false;
 
-function loadSwPlayer() {
-  if (swPlayerLoaded) return;
-  swPlayerLoaded = true;
-  const f = document.createElement("iframe");
-  f.src = "https://www.youtube.com/embed/wjVGjDoX3JQ?enablejsapi=1&playsinline=1&rel=0";
-  f.title = "Battlefront loading screens";
-  f.allow = "autoplay; encrypted-media";
-  f.allowFullscreen = true;
-  f.onload = () => setTimeout(syncSwVideo, 1200); // si ya hay ronda abierta, saltar a su pantalla
-  $("swPlayer").appendChild(f);
-}
-
-function swCmd(func, args) {
-  const f = document.querySelector("#swPlayer iframe");
-  if (!f) return;
-  f.contentWindow.postMessage(JSON.stringify({ event: "command", func, args: args || [] }), "*");
-}
+$("swMusicBtn").onclick = () => {
+  swMusicOn = !swMusicOn;
+  $("swMusicBtn").textContent = swMusicOn ? "🎵 Música: ON" : "🎵 Música: OFF";
+  if (swMusicOn && swVid.paused) swMusic.play().catch(() => {});
+  if (!swMusicOn) swMusic.pause();
+};
+swVid.addEventListener("ended", () => { if (swMusicOn) swMusic.play().catch(() => {}); });
 
 function syncSwVideo() {
   const q = SW_SCREENS[sw.qIndex];
-  clearTimeout(swPauseTimer);
-  if (!q || !swPlayerLoaded) return;
-  if (sw.status === "open") {
-    // congelar en la pantalla, antes de que la mira se clave
-    swCmd("seekTo", [q.pauseAt, true]);
-    swCmd("pauseVideo");
-    swPauseTimer = setTimeout(() => swCmd("pauseVideo"), 400); // por si el seek arranca la reproducción
-  } else if (sw.status === "revealed") {
-    // el purupupu: reproducir el tramo donde la mira se clava y parar al inicio de la siguiente pantalla
-    swCmd("seekTo", [q.pauseAt, true]);
-    swCmd("playVideo");
-    swPauseTimer = setTimeout(() => swCmd("pauseVideo"), Math.max(1, q.playTo - q.pauseAt) * 1000);
+  if (!q) { swVid.pause(); swVid.removeAttribute("src"); return; }
+  const src = "media/sw_" + String(sw.qIndex).padStart(2, "0") + ".mp4";
+  if (!swVid.getAttribute("src") || !swVid.getAttribute("src").endsWith(src)) {
+    swVid.setAttribute("src", src);
+    swVid.load(); // queda congelado en el primer frame de la pantalla
+  }
+  if (sw.status === "revealed") {
+    swMusic.pause(); // que se oiga el purupupu limpio
+    try { swVid.currentTime = 0; } catch (_) {}
+    swVid.play().catch(() => toast("Toca el play del vídeo ▶ (solo la primera vez)"));
   } else {
-    swCmd("pauseVideo");
+    swVid.pause();
+    if (sw.status === "open" && swMusicOn) swMusic.play().catch(() => {});
   }
 }
 
@@ -2070,7 +2067,7 @@ function showTab(name) {
     $("view" + t).classList.toggle("active", name === t);
   });
   if (name === "Geo") geoGame.onShow();
-  if (name === "Sw") { loadSwPlayer(); renderSw(); }
+  if (name === "Sw") { renderSw(); syncSwVideo(); }
   if (name === "Precio") renderPrecio();
 }
 $("tabMarcador").onclick = () => showTab("Marcador");
