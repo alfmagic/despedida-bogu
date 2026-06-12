@@ -219,6 +219,16 @@
     background: #0b0e1a; border: 1px solid #222c4a;
     text-transform: uppercase; letter-spacing: 1.5px;
   }
+  .franja { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .franjalabels {
+    display: flex; justify-content: space-between; align-items: center;
+    color: var(--muted); font-size: .78rem; font-weight: 700; letter-spacing: 1px;
+  }
+  .franjalabels b { color: #FFE81F; font-size: 1.3rem; }
+  .franja input[type="range"] {
+    width: 100%; height: 34px; accent-color: #FFE81F; cursor: pointer;
+  }
+  .franja .smallbtn { width: 100%; padding: 13px; }
 
   /* ---------- precio justo ---------- */
   .precioimg {
@@ -416,12 +426,17 @@
     <div class="swsub">LA AMENAZA BOGU</div>
     <div class="swplayer" id="swPlayer"></div>
     <div class="geototals" id="swTotals" style="display:none"></div>
-    <div id="swIdle" class="empty">Hace mucho tiempo, en una galaxia muy, muy lejana…<br><br>Las loading screens del Battlefront, las de verdad: en cada ronda el vídeo salta solo a la pantalla de ese planeta y se pausa. Deja tu pin en el mapa galáctico — cuanto más cerca, más puntos (máx 1000).<br><br>▶ Dale al play al vídeo UNA vez al empezar; a partir de ahí va solo.</div>
+    <div id="swIdle" class="empty">Hace mucho tiempo, en una galaxia muy, muy lejana…<br><br>Las loading screens del Battlefront, las de verdad: el vídeo se pausa en cada pantalla (3 por planeta) y tú apuestas EN QUÉ PUNTO de la franja se clavará la mira. Cuando el MC le dé, suena el purupupu y se revela. El más fino se lleva el punto.<br><br>▶ Dale al play al vídeo UNA vez al empezar; a partir de ahí va solo.</div>
     <div id="swQuestion" style="display:none">
       <div class="qmeta" id="swMeta"></div>
       <div class="qcard swq" id="swText"></div>
-      <div id="swMap" class="pinmap"></div>
+      <div class="franja" id="swFranja">
+        <div class="franjalabels"><span id="swLab0">⬅ IZQUIERDA</span><b id="swPct">50</b><span id="swLab1">DERECHA ➡</span></div>
+        <input id="swRange" type="range" min="0" max="100" value="50">
+        <button id="swSend" class="smallbtn green">🎯 Enviar posición</button>
+      </div>
       <div class="geostatus" id="swStatus"></div>
+      <div class="preciopvp" id="swLockShow" style="display:none"></div>
       <div class="georesults" id="swResults"></div>
     </div>
     <div id="swFinished" style="display:none" class="finalbox">
@@ -561,14 +576,28 @@ const GEO_BANK = [
   { text: "☀️ El otro veraneo de Bogu", lat: 36.45949, lng: -5.04551, label: "Costalita, Estepona (Málaga)" },
 ];
 
-/* STAR WARS: LA AMENAZA BOGU — cada planeta, su loading screen real del vídeo (t = segundo del vídeo) */
-const SW_BANK = [
-  { galaxy: true, text: "¿Dónde está ENDOR?", lat: 262, lng: 341, label: "Endor (H-16)", sub: "La luna de los ewoks", color: "#8fd694", t: 29, dur: 12 },
-  { galaxy: true, text: "¿Dónde está HOTH?", lat: 167, lng: 477, label: "Hoth (K-18)", sub: "La Batalla de Hoth · base Eco", color: "#9fd8ff", t: 57, dur: 12 },
-  { galaxy: true, text: "¿Dónde está KAMINO?", lat: 310, lng: 841, label: "Kamino (S-15)", sub: "Tipoca City, ciudad de los clones", color: "#8fa8ff", t: 69, dur: 12 },
-  { galaxy: true, text: "¿Dónde está NABOO?", lat: 215, lng: 659, label: "Naboo (O-17)", sub: "Las llanuras de Theed", color: "#7fe0c3", t: 110, dur: 12 },
-  { galaxy: true, text: "¿Dónde está TATOOINE?", lat: 262, lng: 795, label: "Tatooine (R-16)", sub: "Dunas de Mos Eisley", color: "#ffd27a", t: 164, dur: 12 },
-  { galaxy: true, text: "¿Dónde está YAVIN 4?", lat: 738, lng: 704, label: "Yavin 4 (P-6)", sub: "Los templos massassi", color: "#ffb36b", t: 190, dur: 13 },
+/* STAR WARS: LA AMENAZA BOGU — el juego de la franja, fiel a las loading screens del vídeo.
+   Por planeta 3 pantallas (galaxia→planeta→superficie); el vídeo se pausa en pauseAt, la revelación
+   reproduce hasta playTo (el "purupupu" clava el punto). lock = % donde se clava en la franja. */
+const SW_SCREENS = [
+  { planet: "ENDOR", color: "#8fd694", label: "Galaxia", pauseAt: 28, playTo: 32, axis: "v", lock: 22 },
+  { planet: "ENDOR", color: "#8fd694", label: "Planeta", pauseAt: 32, playTo: 36, axis: "v", lock: 28 },
+  { planet: "ENDOR", color: "#8fd694", label: "Superficie", pauseAt: 36, playTo: 41, axis: "h", lock: 72 },
+  { planet: "HOTH", color: "#9fd8ff", label: "Galaxia", pauseAt: 56, playTo: 60, axis: "v", lock: 47 },
+  { planet: "HOTH", color: "#9fd8ff", label: "Planeta", pauseAt: 60, playTo: 64, axis: "h", lock: 63 },
+  { planet: "HOTH", color: "#9fd8ff", label: "Superficie", pauseAt: 64, playTo: 68, axis: "v", lock: 33 },
+  { planet: "KAMINO", color: "#8fa8ff", label: "Galaxia", pauseAt: 68, playTo: 72, axis: "v", lock: 52 },
+  { planet: "KAMINO", color: "#8fa8ff", label: "Planeta", pauseAt: 72, playTo: 76, axis: "h", lock: 48 },
+  { planet: "KAMINO", color: "#8fa8ff", label: "Superficie", pauseAt: 76, playTo: 81, axis: "h", lock: 92 },
+  { planet: "NABOO", color: "#7fe0c3", label: "Galaxia", pauseAt: 110, playTo: 114, axis: "v", lock: 48 },
+  { planet: "NABOO", color: "#7fe0c3", label: "Planeta", pauseAt: 114, playTo: 118, axis: "v", lock: 32 },
+  { planet: "NABOO", color: "#7fe0c3", label: "Superficie", pauseAt: 118, playTo: 122, axis: "h", lock: 57 },
+  { planet: "TATOOINE", color: "#ffd27a", label: "Galaxia", pauseAt: 164, playTo: 168, axis: "v", lock: 84 },
+  { planet: "TATOOINE", color: "#ffd27a", label: "Planeta", pauseAt: 168, playTo: 171, axis: "v", lock: 20 },
+  { planet: "TATOOINE", color: "#ffd27a", label: "Superficie", pauseAt: 171, playTo: 175, axis: "h", lock: 57 },
+  { planet: "YAVIN 4", color: "#ffb36b", label: "Galaxia", pauseAt: 190, playTo: 194, axis: "v", lock: 67 },
+  { planet: "YAVIN 4", color: "#ffb36b", label: "Planeta", pauseAt: 194, playTo: 198, axis: "v", lock: 27 },
+  { planet: "YAVIN 4", color: "#ffb36b", label: "Superficie", pauseAt: 198, playTo: 203, axis: "h", lock: 83 },
 ];
 const PARSECS_PER_UNIT = 37; // el mapa galáctico mide ~37.000 pársecs de punta a punta
 
@@ -677,13 +706,14 @@ async function pull({ manual = false } = {}) {
     const remote = normalize(root.state);
     quiz = normalizeQuiz(root.quiz);   // los juegos en vivo se sincronizan siempre, no pasan por Publicar
     geoGame.data = normalizeGeo(root.geo);
-    swGame.data = normalizeGeo(root.sw);
+    sw = normalizeGeo(root.sw);
     precio = normalizeGeo(root.precio);
     setOnline(true);
     if (dirty) {
       // no machacar ediciones locales del MC; solo recordar qué hay fuera
       renderDuelo();
       renderPinGames();
+      renderSw();
       renderPrecio();
       if (manual) toast("Tienes cambios sin publicar — no se ha sobrescrito");
       return;
@@ -769,6 +799,7 @@ function render() {
   renderRetos();
   renderDuelo();
   renderPinGames();
+  renderSw();
   renderPrecio();
   renderMc();
   updatePubbar();
@@ -1454,9 +1485,199 @@ function makePinGame(cfg) {
 }
 
 const geoGame = makePinGame({ node: "geo", ids: "geo", bank: GEO_BANK, mode: "world", title: "GeoBogu", unit: "Lugar" });
-const swGame = makePinGame({ node: "sw", ids: "sw", bank: SW_BANK, mode: "galaxy", title: "la Amenaza", unit: "Planeta", onRound: () => syncSwVideo() });
 
-function renderPinGames() { geoGame.render(); swGame.render(); }
+function renderPinGames() { geoGame.render(); }
+
+/* ===================== La Amenaza Bogu: el juego de la franja ===================== */
+let sw = normalizeGeo(null);
+let swEcho = null;
+const swView = { roundKey: "" };
+const swUrl = (path) => dbBase() + "/sw" + path + ".json";
+const swAnswers = () => sw.answers[sw.qIndex] || {};
+
+async function swWrite(path, value, method = "PUT") {
+  const res = await fetch(swUrl(path), {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(value),
+  });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+}
+
+async function swAction(value, method) {
+  try {
+    await swWrite("", value, method);
+    await pull();
+  } catch (e) {
+    setOnline(false);
+    toast("Sin conexión — reintenta");
+  }
+}
+
+async function sendSw() {
+  if (sw.status !== "open") return;
+  if (!myPlayerId) { toast("Únete al marcador para jugar 🙋"); return; }
+  const n = Math.max(0, Math.min(100, parseInt($("swRange").value, 10) || 0));
+  if (!sw.answers[sw.qIndex]) sw.answers[sw.qIndex] = {};
+  sw.answers[sw.qIndex][myPlayerId] = n;
+  swEcho = { q: sw.qIndex, v: n, until: Date.now() + 6000 };
+  renderSwStatus();
+  try {
+    await swWrite(`/answers/${sw.qIndex}/${myPlayerId}`, n);
+    toast(`🎯 Posición enviada: ${n}%`);
+  } catch (e) {
+    toast("No se ha podido enviar — dale otra vez");
+  }
+}
+$("swSend").onclick = sendSw;
+$("swRange").oninput = () => { $("swPct").textContent = $("swRange").value; };
+
+function renderSwStatus() {
+  const st = $("swStatus");
+  if (sw.status !== "open") { st.textContent = ""; return; }
+  let mine = swAnswers()[myPlayerId];
+  if (mine == null && swEcho && swEcho.q === sw.qIndex && Date.now() < swEcho.until) mine = swEcho.v;
+  if (!myPlayerId) { st.className = "geostatus"; st.textContent = "Únete al marcador para poder jugar 🙋"; }
+  else if (mine != null) { st.className = "geostatus ok"; st.textContent = `🎯 Enviado: ${mine}% — puedes cambiarlo hasta que el MC le dé`; }
+  else { st.className = "geostatus"; st.textContent = "Mueve la franja y dale a Enviar 👆"; }
+}
+
+function renderSw() {
+  const q = SW_SCREENS[sw.qIndex];
+  const showQ = (sw.status === "open" || sw.status === "revealed") && q;
+  $("swIdle").style.display = sw.status === "idle" ? "block" : "none";
+  $("swQuestion").style.display = showQ ? "block" : "none";
+  $("swFinished").style.display = sw.status === "finished" ? "block" : "none";
+
+  const totalsEl = $("swTotals");
+  const totals = Object.entries(sw.totals || {});
+  if (sw.status !== "idle" && totals.length) {
+    totalsEl.style.display = "flex";
+    totalsEl.innerHTML = totals.sort((a, b) => b[1] - a[1]).slice(0, 5).map(([pid, pts]) => {
+      const p = state.players.find(x => x.id === pid);
+      return `<span>${esc(p ? p.name : "?")} <b>${pts}</b></span>`;
+    }).join("");
+  } else totalsEl.style.display = "none";
+
+  // sincronizar el vídeo cuando cambia la ronda o el estado (también con la pestaña cerrada)
+  const rk = sw.status + ":" + sw.qIndex;
+  if (swView.roundKey !== rk) {
+    swView.roundKey = rk;
+    syncSwVideo();
+    if (showQ && sw.status === "open") {
+      const mine = swAnswers()[myPlayerId];
+      $("swRange").value = mine != null ? mine : 50;
+      $("swPct").textContent = $("swRange").value;
+    }
+  }
+
+  if (showQ) {
+    const screenNo = (sw.qIndex % 3) + 1;
+    $("swMeta").textContent = `${q.planet} · pantalla ${screenNo}/3 — ${q.label}`;
+    const revealed = sw.status === "revealed";
+    $("swText").textContent = q.axis === "h"
+      ? "Franja VERTICAL: ¿a qué altura se clavará la mira?"
+      : "Franja HORIZONTAL: ¿dónde se clavará la mira?";
+    $("swText").style.color = q.color || "";
+    $("swLab0").textContent = q.axis === "h" ? "⬆ ARRIBA" : "⬅ IZQUIERDA";
+    $("swLab1").textContent = q.axis === "h" ? "ABAJO ⬇" : "DERECHA ➡";
+    $("swFranja").style.display = revealed ? "none" : "flex";
+
+    if (revealed && sw.lastResult) {
+      $("swLockShow").style.display = "block";
+      $("swLockShow").textContent = `🎯 Se clavó en el ${sw.lastResult.lock}%`;
+      const medals = ["🥇", "🥈", "🥉"];
+      $("swResults").innerHTML = (sw.lastResult.list || []).map((e, i) =>
+        `<div class="grow"><span>${medals[i] || (i + 1) + "º"}</span><span class="gname">${esc(e.name)}</span>` +
+        `<span class="gdist">${e.guess}% (±${e.diff})</span><span class="gpts">${e.pts ? "+1" : ""}</span></div>`
+      ).join("") || "<div class='empty'>Nadie apostó 😴</div>";
+    } else {
+      $("swLockShow").style.display = "none";
+      $("swResults").innerHTML = "";
+    }
+    renderSwStatus();
+  }
+
+  if (sw.status === "finished") {
+    const ranking = Object.entries(sw.totals || {}).sort((a, b) => b[1] - a[1]);
+    const medals = ["🥇", "🥈", "🥉"];
+    $("swFinal").innerHTML = ranking.length
+      ? ranking.map(([pid, pts], i) => {
+          const p = state.players.find(x => x.id === pid);
+          return `<div>${medals[i] || (i + 1) + "º"} ${esc(p ? p.name : "?")} — <b>${pts} ${pts === 1 ? "pantalla" : "pantallas"}</b></div>`;
+        }).join("") + "<div style='margin-top:10px;color:var(--muted);font-size:.85rem'>El MC pasa estos puntos al Marcador 🏆</div>"
+      : "Nadie ha puntuado 😅";
+  }
+
+  renderSwMc();
+}
+
+function renderSwMc() {
+  const box = $("swMc");
+  box.style.display = mcMode ? "flex" : "none";
+  if (!mcMode) return;
+  box.innerHTML = "<div class='mctitle'>🎤 CONTROLES DEL MC</div>";
+  const info = document.createElement("div");
+  info.className = "mcinfo";
+  const btns = document.createElement("div");
+  btns.className = "mcbtns";
+  const addBtn = (label, cls, fn) => {
+    const b = document.createElement("button");
+    b.className = "smallbtn " + cls;
+    b.textContent = label;
+    b.onclick = fn;
+    btns.appendChild(b);
+  };
+
+  if (sw.status === "idle") {
+    info.textContent = `${SW_SCREENS.length} pantallas (6 planetas × 3). Recuerda: play al vídeo una vez antes de empezar.`;
+    addBtn("▶ Empezar la Amenaza", "green", () =>
+      swAction({ status: "open", qIndex: 0, answers: null, totals: null, lastResult: null }, "PUT"));
+  }
+  if (sw.status === "open") {
+    const ans = swAnswers();
+    const con = state.players.filter(p => ans[p.id] != null).length;
+    info.textContent = `${con}/${state.players.length} han apostado.`;
+    addBtn("👁 PURUPUPU (revelar)", "", swReveal);
+  }
+  if (sw.status === "revealed") {
+    const last = sw.qIndex >= SW_SCREENS.length - 1;
+    info.textContent = last ? "Era la última pantalla." : "Cuando estés listo, siguiente pantalla.";
+    if (!last) addBtn("⏭ Siguiente", "green", () =>
+      swAction({ status: "open", qIndex: sw.qIndex + 1, lastResult: null }, "PATCH"));
+    addBtn("🏁 Terminar", last ? "green" : "gray", () => swAction({ status: "finished" }, "PATCH"));
+  }
+  if (sw.status !== "idle") {
+    addBtn("⟲ Reiniciar la Amenaza", "gray", () => {
+      if (!confirm("¿Borrar la Amenaza entera (apuestas y puntos)?")) return;
+      swAction({ status: "idle" }, "PUT");
+    });
+  }
+  box.appendChild(info);
+  box.appendChild(btns);
+}
+
+async function swReveal() {
+  const q = SW_SCREENS[sw.qIndex];
+  // apuestas de última hora
+  try {
+    const res = await fetch(swUrl(`/answers/${sw.qIndex}`), { cache: "no-store" });
+    if (res.ok) {
+      const fresh = await res.json();
+      if (fresh) sw.answers[sw.qIndex] = fresh;
+    }
+  } catch (_) {}
+  const ans = swAnswers();
+  const list = state.players
+    .filter(p => Number.isFinite(ans[p.id]))
+    .map(p => ({ pid: p.id, name: p.name, guess: ans[p.id], diff: Math.abs(ans[p.id] - q.lock) }))
+    .sort((a, b) => a.diff - b.diff);
+  const minDiff = list.length ? list[0].diff : null;
+  const scored = list.map(e => ({ ...e, pts: e.diff === minDiff ? 1 : 0 })); // empates comparten
+  const totals = { ...sw.totals };
+  scored.forEach(e => { if (e.pts) totals[e.pid] = (totals[e.pid] || 0) + 1; });
+  await swAction({ status: "revealed", totals, lastResult: { n: scored.length, lock: q.lock, list: scored } }, "PATCH");
+}
 
 /* ===================== El Precio Justo · Mercadona ===================== */
 let precio = normalizeGeo(null);
@@ -1671,16 +1892,20 @@ function swCmd(func, args) {
 }
 
 function syncSwVideo() {
-  const d = swGame.data;
-  const q = SW_BANK[d.qIndex];
+  const q = SW_SCREENS[sw.qIndex];
   clearTimeout(swPauseTimer);
   if (!q || !swPlayerLoaded) return;
-  if (d.status === "open") {
-    swCmd("seekTo", [q.t, true]);
+  if (sw.status === "open") {
+    // congelar en la pantalla, antes de que la mira se clave
+    swCmd("seekTo", [q.pauseAt, true]);
+    swCmd("pauseVideo");
+    swPauseTimer = setTimeout(() => swCmd("pauseVideo"), 400); // por si el seek arranca la reproducción
+  } else if (sw.status === "revealed") {
+    // el purupupu: reproducir el tramo donde la mira se clava y parar al inicio de la siguiente pantalla
+    swCmd("seekTo", [q.pauseAt, true]);
     swCmd("playVideo");
-    // …y que vaya parando: se detiene solo en la pantalla de carga de este planeta
-    swPauseTimer = setTimeout(() => swCmd("pauseVideo"), (q.dur || 12) * 1000);
-  } else if (d.status === "revealed" || d.status === "finished" || d.status === "idle") {
+    swPauseTimer = setTimeout(() => swCmd("pauseVideo"), Math.max(1, q.playTo - q.pauseAt) * 1000);
+  } else {
     swCmd("pauseVideo");
   }
 }
@@ -1845,7 +2070,7 @@ function showTab(name) {
     $("view" + t).classList.toggle("active", name === t);
   });
   if (name === "Geo") geoGame.onShow();
-  if (name === "Sw") { loadSwPlayer(); swGame.onShow(); }
+  if (name === "Sw") { loadSwPlayer(); renderSw(); }
   if (name === "Precio") renderPrecio();
 }
 $("tabMarcador").onclick = () => showTab("Marcador");
@@ -1880,7 +2105,7 @@ render();
 pull();
 // con una pregunta o ronda abierta el sondeo se acelera
 (function schedulePoll() {
-  const live = [quiz.status, geoGame.data.status, swGame.data.status, precio.status].some(s => s === "open" || s === "revealed");
+  const live = [quiz.status, geoGame.data.status, sw.status, precio.status].some(s => s === "open" || s === "revealed");
   setTimeout(async () => {
     await pull();
     schedulePoll();
