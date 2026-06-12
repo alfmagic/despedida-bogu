@@ -196,10 +196,26 @@
   .duelmc .mcbtns .smallbtn { flex: 1; padding: 11px 8px; }
   .duelmc .mcinfo { font-size: .82rem; color: var(--muted); }
 
-  /* ---------- geobogu ---------- */
-  #geoMap {
+  /* ---------- juegos de pin ---------- */
+  #geoMap, #swMap {
     height: 46vh; min-height: 260px; border-radius: var(--radius);
     margin-top: 10px; background: var(--card2);
+  }
+  #swMap { background: #06080f; }
+
+  /* ---------- star wars ---------- */
+  .swtitle {
+    text-align: center; font-weight: 900; letter-spacing: 6px;
+    color: #FFE81F; font-size: 1.5rem; margin-top: 2px;
+  }
+  .swsub {
+    text-align: center; font-weight: 800; letter-spacing: 4px;
+    color: #FFE81F; opacity: .85; font-size: .85rem; margin-bottom: 10px;
+  }
+  .swplayer iframe { width: 100%; height: 90px; border: 0; border-radius: 10px; margin-bottom: 10px; display: block; }
+  .qcard.swq {
+    background: #0b0e1a; border: 1px solid #222c4a;
+    text-transform: uppercase; letter-spacing: 1.5px;
   }
   .geostatus { text-align: center; color: var(--muted); font-size: .82rem; margin-top: 8px; min-height: 1.2em; }
   .geostatus.ok { color: var(--green); font-weight: 600; }
@@ -301,6 +317,7 @@
   <button id="tabPruebas">🎯 Pruebas</button>
   <button id="tabDuelo">🧠 Duelo</button>
   <button id="tabGeo">📍 GeoBogu</button>
+  <button id="tabSw">⭐ Amenaza</button>
 </nav>
 
 <main>
@@ -371,6 +388,27 @@
       <div class="finalverdict" id="geoFinal"></div>
     </div>
     <div id="geoMc" class="duelmc" style="display:none"></div>
+  </section>
+
+  <!-- ===== STAR WARS: LA AMENAZA BOGU ===== -->
+  <section id="viewSw" class="view">
+    <div class="swtitle">STAR WARS</div>
+    <div class="swsub">LA AMENAZA BOGU</div>
+    <div class="swplayer" id="swPlayer"></div>
+    <div class="geototals" id="swTotals" style="display:none"></div>
+    <div id="swIdle" class="empty">Hace mucho tiempo, en una galaxia muy, muy lejana…<br><br>Las loading screens del Battlefront vuelven: cada planeta, su pantalla. Dale al play 🎵 y deja tu pin en el mapa galáctico.</div>
+    <div id="swQuestion" style="display:none">
+      <div class="qmeta" id="swMeta"></div>
+      <div class="qcard swq" id="swText"></div>
+      <div id="swMap" class="pinmap"></div>
+      <div class="geostatus" id="swStatus"></div>
+      <div class="georesults" id="swResults"></div>
+    </div>
+    <div id="swFinished" style="display:none" class="finalbox">
+      <div class="finalscore">⭐ La Amenaza Bogu</div>
+      <div class="finalverdict" id="swFinal"></div>
+    </div>
+    <div id="swMc" class="duelmc" style="display:none"></div>
   </section>
 
   <button class="mclink" id="mcLink">¿Eres el MC?</button>
@@ -478,12 +516,22 @@ const GEO_BANK = [
   { text: "🏖️ La casa de la yaya de los veranos", lat: 41.18941, lng: 1.56962, label: "Carrer Pescador, Calafell (Tarragona)" },
   { text: "☀️ El otro veraneo de Bogu", lat: 36.45949, lng: -5.04551, label: "Costalita, Estepona (Málaga)" },
 ];
+
+/* STAR WARS: LA AMENAZA BOGU — cada planeta, su loading screen (coords = casillas del mapa canon) */
+const SW_BANK = [
+  { galaxy: true, text: "¿Dónde está HOTH?", lat: 167, lng: 477, label: "Hoth (K-18)", sub: "La Batalla de Hoth · base Eco", color: "#9fd8ff" },
+  { galaxy: true, text: "¿Dónde está TATOOINE?", lat: 262, lng: 795, label: "Tatooine (R-16)", sub: "Dunas de Mos Eisley", color: "#ffd27a" },
+  { galaxy: true, text: "¿Dónde está ENDOR?", lat: 262, lng: 341, label: "Endor (H-16)", sub: "La luna de los ewoks", color: "#8fd694" },
+  { galaxy: true, text: "¿Dónde está NABOO?", lat: 215, lng: 659, label: "Naboo (O-17)", sub: "Las llanuras de Theed", color: "#7fe0c3" },
+  { galaxy: true, text: "¿Dónde está KAMINO?", lat: 310, lng: 841, label: "Kamino (S-15)", sub: "Tipoca City, ciudad de los clones", color: "#8fa8ff" },
+  { galaxy: true, text: "¿Dónde está YAVIN 4?", lat: 738, lng: 704, label: "Yavin 4 (P-6)", sub: "Los templos massassi", color: "#ffb36b" },
+];
 const GEO_PTS = [5, 3, 1]; // puntos para los 3 pins más cercanos
+const PARSECS_PER_UNIT = 37; // el mapa galáctico mide ~37.000 pársecs de punta a punta
 
 /* ===================== estado ===================== */
 let state = { updatedAt: 0, players: [], retos: [] };
 let quiz = { status: "idle", qIndex: 0, boguId: "", answers: {}, score: { masa: 0, bogu: 0 }, lastResult: null };
-let geo = { status: "idle", qIndex: 0, answers: {}, totals: {}, lastResult: null };
 let mcMode = localStorage.getItem("mcMode") === "1";
 let myPlayerId = localStorage.getItem("myPlayerId") || "";
 let dirty = false;          // cambios locales sin publicar
@@ -555,13 +603,14 @@ async function pull({ manual = false } = {}) {
     if (!res.ok) throw new Error("HTTP " + res.status);
     const root = (await res.json()) || {};
     const remote = normalize(root.state);
-    quiz = normalizeQuiz(root.quiz);   // duelo y geo se sincronizan siempre, no pasan por Publicar
-    geo = normalizeGeo(root.geo);
+    quiz = normalizeQuiz(root.quiz);   // los juegos en vivo se sincronizan siempre, no pasan por Publicar
+    geoGame.data = normalizeGeo(root.geo);
+    swGame.data = normalizeGeo(root.sw);
     setOnline(true);
     if (dirty) {
       // no machacar ediciones locales del MC; solo recordar qué hay fuera
       renderDuelo();
-      renderGeo();
+      renderPinGames();
       if (manual) toast("Tienes cambios sin publicar — no se ha sobrescrito");
       return;
     }
@@ -645,7 +694,7 @@ function render() {
   renderPlayers();
   renderRetos();
   renderDuelo();
-  renderGeo();
+  renderPinGames();
   renderMc();
   updatePubbar();
 }
@@ -1023,233 +1072,315 @@ async function reveal() {
   }, "PATCH", "");
 }
 
-/* ===================== GeoBogu ===================== */
-const geoUrl = (path) => dbBase() + "/geo" + path + ".json";
-
-async function geoWrite(path, value, method = "PUT") {
-  const res = await fetch(geoUrl(path), {
-    method,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(value),
-  });
-  if (!res.ok) throw new Error("HTTP " + res.status);
-}
-
-async function geoAction(value, method) {
-  try {
-    await geoWrite("", value, method);
-    await pull();
-  } catch (e) {
-    setOnline(false);
-    toast("Sin conexión — reintenta");
-  }
-}
-
+/* ===================== juegos de pin (GeoBogu + Amenaza) ===================== */
 function distKm(a, b) {
   const R = 6371, rad = (x) => x * Math.PI / 180;
   const dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng);
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(h));
 }
-const fmtDist = (d) => d < 1 ? Math.round(d * 1000) + " m" : (d < 10 ? d.toFixed(1) : Math.round(d)) + " km";
-const geoAnswers = () => geo.answers[geo.qIndex] || {};
-
-const geoView = { map: null, myMarker: null, revealLayers: [], key: "" };
-
+const roundDist = (q, a) => q.galaxy
+  ? Math.hypot(a.lat - q.lat, a.lng - q.lng) * PARSECS_PER_UNIT
+  : distKm(a, q);
+const fmtDist = (d, galaxy) => galaxy
+  ? Math.round(d).toLocaleString("es-ES") + " pársecs"
+  : (d < 1 ? Math.round(d * 1000) + " m" : (d < 10 ? d.toFixed(1) : Math.round(d).toLocaleString("es-ES")) + " km");
 function emojiIcon(emoji) {
   return L.divIcon({ html: `<span class="pinemoji">${emoji}</span>`, className: "", iconSize: [26, 26], iconAnchor: [13, 24] });
 }
 
-function initGeoMap() {
-  if (geoView.map || typeof L === "undefined") return;
-  geoView.map = L.map("geoMap", { zoomControl: true }).setView([40.2, -3.5], 5);
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution: "© OpenStreetMap",
-  }).addTo(geoView.map);
-  geoView.map.on("click", (e) => placeMyPin(e.latlng.lat, e.latlng.lng));
+/* mapa galáctico tipo loading screen del Battlefront, generado al vuelo (determinista) */
+let _galaxyUri = "";
+function galaxyMapUri() {
+  if (_galaxyUri) return _galaxyUri;
+  let seed = 1977; // ese año salió Star Wars, claro
+  const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  const p = [];
+  p.push('<rect width="1000" height="1000" fill="#06080f"/>');
+  p.push('<defs><radialGradient id="core"><stop offset="0%" stop-color="#fff3d6" stop-opacity=".9"/><stop offset="35%" stop-color="#c9a96a" stop-opacity=".4"/><stop offset="100%" stop-color="#06080f" stop-opacity="0"/></radialGradient></defs>');
+  p.push('<ellipse cx="505" cy="430" rx="450" ry="410" fill="url(#core)" opacity=".16"/>');
+  p.push('<ellipse cx="505" cy="430" rx="160" ry="125" fill="url(#core)"/>');
+  const colors = ["#ffffff", "#bcd0ff", "#ffe3b3", "#9bb6ff"];
+  const dot = (x, y, r, o) => {
+    if (x < 4 || x > 996 || y < 4 || y > 996) return;
+    p.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(2)}" fill="${colors[(rnd() * 4) | 0]}" opacity="${o.toFixed(2)}"/>`);
+  };
+  for (let i = 0; i < 230; i++) { // núcleo
+    const a = rnd() * 6.283, r = Math.pow(rnd(), 1.6) * 135;
+    dot(505 + Math.cos(a) * r, 430 + Math.sin(a) * r * 0.8, 0.4 + rnd() * 1.1, 0.35 + rnd() * 0.55);
+  }
+  for (let arm = 0; arm < 3; arm++) { // brazos espirales
+    const off = arm * 2.094;
+    for (let i = 0; i < 170; i++) {
+      const t = 0.5 + (i / 170) * 3.6, r = 30 * Math.exp(0.62 * t), th = t + off;
+      dot(505 + Math.cos(th) * r + (rnd() - 0.5) * 40, 430 + Math.sin(th) * r * 0.92 + (rnd() - 0.5) * 40,
+          0.3 + rnd() * 1.2, 0.25 + rnd() * 0.6);
+    }
+  }
+  for (let i = 0; i < 220; i++) dot(rnd() * 1000, rnd() * 1000, 0.3 + rnd() * 0.8, 0.1 + rnd() * 0.3); // halo
+  // rejilla con coordenadas, como el mapa canon
+  const letters = "ABCDEFGHIJKLMNOPQRSTUV";
+  for (let c = 0; c <= 22; c++) p.push(`<line x1="${(c * 1000 / 22).toFixed(1)}" y1="0" x2="${(c * 1000 / 22).toFixed(1)}" y2="1000" stroke="#22304f" stroke-width="1" opacity=".45"/>`);
+  for (let r = 0; r <= 21; r++) p.push(`<line x1="0" y1="${(r * 1000 / 21).toFixed(1)}" x2="1000" y2="${(r * 1000 / 21).toFixed(1)}" stroke="#22304f" stroke-width="1" opacity=".45"/>`);
+  for (let c = 0; c < 22; c++) p.push(`<text x="${((c + 0.5) * 1000 / 22).toFixed(1)}" y="15" fill="#5d739f" font-size="12" font-family="sans-serif" text-anchor="middle">${letters[c]}</text>`);
+  for (let r = 0; r < 21; r++) p.push(`<text x="8" y="${((r + 0.6) * 1000 / 21).toFixed(1)}" fill="#5d739f" font-size="12" font-family="sans-serif">${r + 1}</text>`);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000" viewBox="0 0 1000 1000">${p.join("")}</svg>`;
+  _galaxyUri = "data:image/svg+xml," + encodeURIComponent(svg);
+  return _galaxyUri;
 }
 
-async function placeMyPin(lat, lng) {
-  if (geo.status !== "open" || !myPlayerId) {
-    if (!myPlayerId) toast("Únete al marcador para jugar 🙋");
-    return;
-  }
-  lat = +lat.toFixed(5); lng = +lng.toFixed(5);
-  if (!geoView.myMarker) {
-    geoView.myMarker = L.marker([lat, lng], { icon: emojiIcon("📍"), draggable: true }).addTo(geoView.map);
-    geoView.myMarker.on("dragend", () => {
-      const p = geoView.myMarker.getLatLng();
-      placeMyPin(p.lat, p.lng);
+const GALAXY_BOUNDS = [[0, 0], [1000, 1000]];
+
+/* Motor de juego de pins, parametrizable: GeoBogu (mundo real) y La Amenaza Bogu (galaxia) */
+function makePinGame(cfg) {
+  const g = { data: normalizeGeo(null) };
+  const view = { map: null, myMarker: null, revealLayers: [], key: "" };
+  const el = (s) => $(cfg.ids + s);
+  const nodeUrl = (path) => dbBase() + "/" + cfg.node + path + ".json";
+  const answers = () => g.data.answers[g.data.qIndex] || {};
+
+  async function write(path, value, method = "PUT") {
+    const res = await fetch(nodeUrl(path), {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(value),
     });
-  } else {
-    geoView.myMarker.setLatLng([lat, lng]);
+    if (!res.ok) throw new Error("HTTP " + res.status);
   }
-  if (!geo.answers[geo.qIndex]) geo.answers[geo.qIndex] = {};
-  geo.answers[geo.qIndex][myPlayerId] = { lat, lng };
-  renderGeoStatus();
-  try {
-    await geoWrite(`/answers/${geo.qIndex}/${myPlayerId}`, { lat, lng });
-  } catch (e) {
-    toast("No se ha podido enviar el pin — toca otra vez");
+
+  async function action(value, method) {
+    try {
+      await write("", value, method);
+      await pull();
+    } catch (e) {
+      setOnline(false);
+      toast("Sin conexión — reintenta");
+    }
   }
-}
+  g.action = action;
 
-function clearGeoLayers() {
-  geoView.revealLayers.forEach(l => geoView.map && geoView.map.removeLayer(l));
-  geoView.revealLayers = [];
-  if (geoView.myMarker && geoView.map) { geoView.map.removeLayer(geoView.myMarker); geoView.myMarker = null; }
-}
+  function initMap() {
+    if (view.map || typeof L === "undefined") return;
+    if (cfg.mode === "galaxy") {
+      view.map = L.map(cfg.ids + "Map", { crs: L.CRS.Simple, minZoom: -1, maxZoom: 3, zoomControl: true, attributionControl: false });
+      L.imageOverlay(galaxyMapUri(), GALAXY_BOUNDS).addTo(view.map);
+      view.map.fitBounds(GALAXY_BOUNDS);
+      view.map.setMaxBounds([[-120, -120], [1120, 1120]]);
+    } else {
+      view.map = L.map(cfg.ids + "Map", { zoomControl: true }).setView([40.2, -3.5], 5);
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "© OpenStreetMap",
+      }).addTo(view.map);
+    }
+    view.map.on("click", (e) => placePin(e.latlng.lat, e.latlng.lng));
+  }
 
-function renderGeoStatus() {
-  const el = $("geoStatus");
-  if (geo.status !== "open") { el.textContent = ""; return; }
-  const mine = geoAnswers()[myPlayerId];
-  if (!myPlayerId) { el.className = "geostatus"; el.textContent = "Únete al marcador para poder jugar 🙋"; }
-  else if (mine) { el.className = "geostatus ok"; el.textContent = "📍 Pin enviado — puedes moverlo hasta que el MC cierre"; }
-  else { el.className = "geostatus"; el.textContent = "Toca el mapa para dejar tu pin 👆"; }
-}
+  function resetMapView() {
+    if (cfg.mode === "galaxy") view.map.fitBounds(GALAXY_BOUNDS);
+    else view.map.setView([40.2, -3.5], 5);
+  }
 
-function renderGeo() {
-  const q = GEO_BANK[geo.qIndex];
-  const showQ = (geo.status === "open" || geo.status === "revealed") && q;
-  $("geoIdle").style.display = geo.status === "idle" ? "block" : "none";
-  $("geoQuestion").style.display = showQ ? "block" : "none";
-  $("geoFinished").style.display = geo.status === "finished" ? "block" : "none";
+  async function placePin(lat, lng) {
+    if (g.data.status !== "open" || !myPlayerId) {
+      if (!myPlayerId) toast("Únete al marcador para jugar 🙋");
+      return;
+    }
+    lat = +lat.toFixed(5); lng = +lng.toFixed(5);
+    if (!view.myMarker) {
+      view.myMarker = L.marker([lat, lng], { icon: emojiIcon("📍"), draggable: true }).addTo(view.map);
+      view.myMarker.on("dragend", () => {
+        const p = view.myMarker.getLatLng();
+        placePin(p.lat, p.lng);
+      });
+    } else {
+      view.myMarker.setLatLng([lat, lng]);
+    }
+    if (!g.data.answers[g.data.qIndex]) g.data.answers[g.data.qIndex] = {};
+    g.data.answers[g.data.qIndex][myPlayerId] = { lat, lng };
+    renderStatus();
+    try {
+      await write(`/answers/${g.data.qIndex}/${myPlayerId}`, { lat, lng });
+    } catch (e) {
+      toast("No se ha podido enviar el pin — toca otra vez");
+    }
+  }
 
-  // totales acumulados
-  const totalsEl = $("geoTotals");
-  const totals = Object.entries(geo.totals || {});
-  if (geo.status !== "idle" && totals.length) {
-    totalsEl.style.display = "flex";
-    const byPts = totals.sort((a, b) => b[1] - a[1]).slice(0, 5);
-    totalsEl.innerHTML = byPts.map(([pid, pts]) => {
-      const p = state.players.find(x => x.id === pid);
-      return `<span>${p ? p.name : "?"} <b>${pts}</b></span>`;
-    }).join("");
-  } else totalsEl.style.display = "none";
+  function clearLayers() {
+    view.revealLayers.forEach(l => view.map && view.map.removeLayer(l));
+    view.revealLayers = [];
+    if (view.myMarker && view.map) { view.map.removeLayer(view.myMarker); view.myMarker = null; }
+  }
 
-  if (showQ) {
-    $("geoMeta").textContent = `Lugar ${geo.qIndex + 1} de ${GEO_BANK.length}`;
-    $("geoText").textContent = q.text + (geo.status === "revealed" ? " — " + q.label : "");
-    initGeoMap();
+  function renderStatus() {
+    const st = el("Status");
+    if (g.data.status !== "open") { st.textContent = ""; return; }
+    const mine = answers()[myPlayerId];
+    if (!myPlayerId) { st.className = "geostatus"; st.textContent = "Únete al marcador para poder jugar 🙋"; }
+    else if (mine) { st.className = "geostatus ok"; st.textContent = "📍 Pin enviado — puedes moverlo hasta que el MC cierre"; }
+    else { st.className = "geostatus"; st.textContent = "Toca el mapa para dejar tu pin 👆"; }
+  }
 
-    const key = geo.status + ":" + geo.qIndex;
-    if (geoView.key !== key && geoView.map) {
-      geoView.key = key;
-      clearGeoLayers();
-      if (geo.status === "open") {
-        geoView.map.setView([40.2, -3.5], 5);
-        const mine = geoAnswers()[myPlayerId];
-        if (mine) placeMyPin(mine.lat, mine.lng);
+  g.render = function () {
+    const q = cfg.bank[g.data.qIndex];
+    const showQ = (g.data.status === "open" || g.data.status === "revealed") && q;
+    el("Idle").style.display = g.data.status === "idle" ? "block" : "none";
+    el("Question").style.display = showQ ? "block" : "none";
+    el("Finished").style.display = g.data.status === "finished" ? "block" : "none";
+
+    const totalsEl = el("Totals");
+    const totals = Object.entries(g.data.totals || {});
+    if (g.data.status !== "idle" && totals.length) {
+      totalsEl.style.display = "flex";
+      totalsEl.innerHTML = totals.sort((a, b) => b[1] - a[1]).slice(0, 5).map(([pid, pts]) => {
+        const p = state.players.find(x => x.id === pid);
+        return `<span>${p ? p.name : "?"} <b>${pts}</b></span>`;
+      }).join("");
+    } else totalsEl.style.display = "none";
+
+    if (showQ) {
+      el("Meta").textContent = `${cfg.unit} ${g.data.qIndex + 1} de ${cfg.bank.length}` + (q.sub ? " — " + q.sub : "");
+      el("Text").textContent = q.text + (g.data.status === "revealed" ? " — " + q.label : "");
+      el("Text").style.color = q.color || "";
+      initMap();
+
+      const key = g.data.status + ":" + g.data.qIndex;
+      if (view.key !== key && view.map) {
+        view.key = key;
+        clearLayers();
+        if (g.data.status === "open") {
+          resetMapView();
+          const mine = answers()[myPlayerId];
+          if (mine) placePin(mine.lat, mine.lng);
+        }
+        if (g.data.status === "revealed" && g.data.lastResult) {
+          const truth = L.marker([q.lat, q.lng], { icon: emojiIcon("🎯") }).addTo(view.map);
+          truth.bindTooltip(q.label, { permanent: false });
+          view.revealLayers.push(truth);
+          const pts = [[q.lat, q.lng]];
+          (g.data.lastResult.list || []).forEach(e => {
+            const m = L.marker([e.lat, e.lng], { icon: emojiIcon("📍") }).addTo(view.map);
+            m.bindTooltip(e.name);
+            view.revealLayers.push(m);
+            pts.push([e.lat, e.lng]);
+          });
+          view.map.fitBounds(pts, { padding: [30, 30], maxZoom: 15 });
+        }
       }
-      if (geo.status === "revealed" && geo.lastResult) {
-        const r = geo.lastResult;
-        const truth = L.marker([q.lat, q.lng], { icon: emojiIcon("🎯") }).addTo(geoView.map);
-        truth.bindTooltip(q.label, { permanent: false });
-        geoView.revealLayers.push(truth);
-        const pts = [[q.lat, q.lng]];
-        (r.list || []).forEach(e => {
-          const m = L.marker([e.lat, e.lng], { icon: emojiIcon("📍") }).addTo(geoView.map);
-          m.bindTooltip(e.name);
-          geoView.revealLayers.push(m);
-          pts.push([e.lat, e.lng]);
-        });
-        geoView.map.fitBounds(pts, { padding: [30, 30], maxZoom: 15 });
-      }
+
+      const res = el("Results");
+      if (g.data.status === "revealed" && g.data.lastResult) {
+        const medals = ["🥇", "🥈", "🥉"];
+        res.innerHTML = (g.data.lastResult.list || []).map((e, i) =>
+          `<div class="grow"><span>${medals[i] || (i + 1) + "º"}</span><span class="gname">${e.name}</span>` +
+          `<span class="gdist">${fmtDist(e.dist, q.galaxy)}</span><span class="gpts">${e.pts ? "+" + e.pts : ""}</span></div>`
+        ).join("") || "<div class='empty'>Nadie dejó pin 😴</div>";
+      } else res.innerHTML = "";
+      renderStatus();
     }
 
-    // resultados de la ronda
-    const res = $("geoResults");
-    if (geo.status === "revealed" && geo.lastResult) {
+    if (g.data.status === "finished") {
+      const ranking = Object.entries(g.data.totals || {}).sort((a, b) => b[1] - a[1]);
       const medals = ["🥇", "🥈", "🥉"];
-      res.innerHTML = (geo.lastResult.list || []).map((e, i) =>
-        `<div class="grow"><span>${medals[i] || (i + 1) + "º"}</span><span class="gname">${e.name}</span>` +
-        `<span class="gdist">${fmtDist(e.dist)}</span><span class="gpts">${e.pts ? "+" + e.pts : ""}</span></div>`
-      ).join("") || "<div class='empty'>Nadie dejó pin 😴</div>";
-    } else res.innerHTML = "";
-    renderGeoStatus();
-  }
+      el("Final").innerHTML = ranking.length
+        ? ranking.map(([pid, pts], i) => {
+            const p = state.players.find(x => x.id === pid);
+            return `<div>${medals[i] || (i + 1) + "º"} ${p ? p.name : "?"} — <b>${pts} pt</b></div>`;
+          }).join("") + "<div style='margin-top:10px;color:var(--muted);font-size:.85rem'>El MC pasa estos puntos al Marcador 🏆</div>"
+        : "Nadie ha puntuado 😅";
+    }
 
-  if (geo.status === "finished") {
-    const ranking = Object.entries(geo.totals || {}).sort((a, b) => b[1] - a[1]);
-    const medals = ["🥇", "🥈", "🥉"];
-    $("geoFinal").innerHTML = ranking.length
-      ? ranking.map(([pid, pts], i) => {
-          const p = state.players.find(x => x.id === pid);
-          return `<div>${medals[i] || (i + 1) + "º"} ${p ? p.name : "?"} — <b>${pts} pt</b></div>`;
-        }).join("") + "<div style='margin-top:10px;color:var(--muted);font-size:.85rem'>El MC pasa estos puntos al Marcador 🏆</div>"
-      : "Nadie ha puntuado 😅";
-  }
-
-  renderGeoMc();
-}
-
-function renderGeoMc() {
-  const box = $("geoMc");
-  box.style.display = mcMode ? "flex" : "none";
-  if (!mcMode) return;
-  box.innerHTML = "<div class='mctitle'>🎤 CONTROLES DEL MC</div>";
-  const info = document.createElement("div");
-  info.className = "mcinfo";
-  const btns = document.createElement("div");
-  btns.className = "mcbtns";
-  const addBtn = (label, cls, fn) => {
-    const b = document.createElement("button");
-    b.className = "smallbtn " + cls;
-    b.textContent = label;
-    b.onclick = fn;
-    btns.appendChild(b);
+    renderMcBox();
   };
 
-  if (geo.status === "idle") {
-    info.textContent = `${GEO_BANK.length} lugares cargados. Todos los que jueguen deben estar unidos al marcador.`;
-    addBtn("▶ Empezar GeoBogu", "green", () =>
-      geoAction({ status: "open", qIndex: 0, answers: null, totals: null, lastResult: null }, "PUT"));
+  function renderMcBox() {
+    const box = el("Mc");
+    box.style.display = mcMode ? "flex" : "none";
+    if (!mcMode) return;
+    box.innerHTML = "<div class='mctitle'>🎤 CONTROLES DEL MC</div>";
+    const info = document.createElement("div");
+    info.className = "mcinfo";
+    const btns = document.createElement("div");
+    btns.className = "mcbtns";
+    const addBtn = (label, cls, fn) => {
+      const b = document.createElement("button");
+      b.className = "smallbtn " + cls;
+      b.textContent = label;
+      b.onclick = fn;
+      btns.appendChild(b);
+    };
+
+    if (g.data.status === "idle") {
+      info.textContent = `${cfg.bank.length} ${cfg.unit.toLowerCase()}s cargados. Todos los que jueguen deben estar unidos al marcador.`;
+      addBtn(`▶ Empezar ${cfg.title}`, "green", () =>
+        action({ status: "open", qIndex: 0, answers: null, totals: null, lastResult: null }, "PUT"));
+    }
+    if (g.data.status === "open") {
+      const ans = answers();
+      const conPin = state.players.filter(p => ans[p.id]).length;
+      info.textContent = `${conPin}/${state.players.length} han dejado pin.`;
+      addBtn("👁 Revelar", "", reveal);
+    }
+    if (g.data.status === "revealed") {
+      const last = g.data.qIndex >= cfg.bank.length - 1;
+      info.textContent = last ? `Era el último ${cfg.unit.toLowerCase()}.` : "Cuando estés listo, siguiente.";
+      if (!last) addBtn("⏭ Siguiente", "green", () =>
+        action({ status: "open", qIndex: g.data.qIndex + 1, lastResult: null }, "PATCH"));
+      addBtn("🏁 Terminar", last ? "green" : "gray", () => action({ status: "finished" }, "PATCH"));
+    }
+    if (g.data.status !== "idle") {
+      addBtn(`⟲ Reiniciar ${cfg.title}`, "gray", () => {
+        if (!confirm(`¿Borrar ${cfg.title} entero (pins y puntos)?`)) return;
+        action({ status: "idle" }, "PUT");
+      });
+    }
+    box.appendChild(info);
+    box.appendChild(btns);
   }
-  if (geo.status === "open") {
-    const ans = geoAnswers();
-    const conPin = state.players.filter(p => ans[p.id]).length;
-    info.textContent = `${conPin}/${state.players.length} han dejado pin.`;
-    addBtn("👁 Revelar lugar", "", geoReveal);
+
+  async function reveal() {
+    const q = cfg.bank[g.data.qIndex];
+    // pins de última hora
+    try {
+      const res = await fetch(nodeUrl(`/answers/${g.data.qIndex}`), { cache: "no-store" });
+      if (res.ok) {
+        const fresh = await res.json();
+        if (fresh) g.data.answers[g.data.qIndex] = fresh;
+      }
+    } catch (_) {}
+    const ans = answers();
+    const list = state.players
+      .filter(p => ans[p.id])
+      .map(p => ({ pid: p.id, name: p.name, lat: ans[p.id].lat, lng: ans[p.id].lng, dist: roundDist(q, ans[p.id]) }))
+      .sort((a, b) => a.dist - b.dist)
+      .map((e, i) => ({ ...e, dist: +e.dist.toFixed(3), pts: GEO_PTS[i] || 0 }));
+    const totals = { ...g.data.totals };
+    list.forEach(e => { if (e.pts) totals[e.pid] = (totals[e.pid] || 0) + e.pts; });
+    // n siempre presente: Firebase descarta arrays vacíos y perderíamos lastResult
+    await action({ status: "revealed", totals, lastResult: { n: list.length, list } }, "PATCH");
   }
-  if (geo.status === "revealed") {
-    const last = geo.qIndex >= GEO_BANK.length - 1;
-    info.textContent = last ? "Era el último lugar." : "Cuando estés listo, siguiente lugar.";
-    if (!last) addBtn("⏭ Siguiente lugar", "green", () =>
-      geoAction({ status: "open", qIndex: geo.qIndex + 1, lastResult: null }, "PATCH"));
-    addBtn("🏁 Terminar", last ? "green" : "gray", () => geoAction({ status: "finished" }, "PATCH"));
-  }
-  if (geo.status !== "idle") {
-    addBtn("⟲ Reiniciar GeoBogu", "gray", () => {
-      if (!confirm("¿Borrar GeoBogu entero (pins y puntos)?")) return;
-      geoAction({ status: "idle" }, "PUT");
-    });
-  }
-  box.appendChild(info);
-  box.appendChild(btns);
+
+  g.onShow = function () {
+    initMap();
+    g.render();
+    if (view.map) setTimeout(() => view.map.invalidateSize(), 60);
+  };
+
+  return g;
 }
 
-async function geoReveal() {
-  const q = GEO_BANK[geo.qIndex];
-  // pins de última hora
-  try {
-    const res = await fetch(geoUrl(`/answers/${geo.qIndex}`), { cache: "no-store" });
-    if (res.ok) {
-      const fresh = await res.json();
-      if (fresh) geo.answers[geo.qIndex] = fresh;
-    }
-  } catch (_) {}
-  const ans = geoAnswers();
-  const list = state.players
-    .filter(p => ans[p.id])
-    .map(p => ({ pid: p.id, name: p.name, lat: ans[p.id].lat, lng: ans[p.id].lng, dist: distKm(ans[p.id], q) }))
-    .sort((a, b) => a.dist - b.dist)
-    .map((e, i) => ({ ...e, dist: +e.dist.toFixed(3), pts: GEO_PTS[i] || 0 }));
-  const totals = { ...geo.totals };
-  list.forEach(e => { if (e.pts) totals[e.pid] = (totals[e.pid] || 0) + e.pts; });
-  // n siempre presente: Firebase descarta arrays vacíos y perderíamos lastResult
-  await geoAction({ status: "revealed", totals, lastResult: { n: list.length, list } }, "PATCH");
+const geoGame = makePinGame({ node: "geo", ids: "geo", bank: GEO_BANK, mode: "world", title: "GeoBogu", unit: "Lugar" });
+const swGame = makePinGame({ node: "sw", ids: "sw", bank: SW_BANK, mode: "galaxy", title: "la Amenaza", unit: "Planeta" });
+
+function renderPinGames() { geoGame.render(); swGame.render(); }
+
+/* reproductor de la música del Battlefront (carga perezosa) */
+let swPlayerLoaded = false;
+function loadSwPlayer() {
+  if (swPlayerLoaded) return;
+  swPlayerLoaded = true;
+  $("swPlayer").innerHTML = '<iframe src="https://www.youtube.com/embed/wjVGjDoX3JQ?loop=1&playlist=wjVGjDoX3JQ" ' +
+    'title="Battlefront loading music" allow="autoplay; encrypted-media" allowfullscreen></iframe>';
 }
 
 /* ===================== modo MC ===================== */
@@ -1407,20 +1538,18 @@ $("newRetoTitle").addEventListener("keydown", e => { if (e.key === "Enter") $("a
 
 /* ===================== tabs / botones ===================== */
 function showTab(name) {
-  ["Marcador", "Pruebas", "Duelo", "Geo"].forEach(t => {
+  ["Marcador", "Pruebas", "Duelo", "Geo", "Sw"].forEach(t => {
     $("tab" + t).classList.toggle("active", name === t);
     $("view" + t).classList.toggle("active", name === t);
   });
-  if (name === "Geo") {
-    initGeoMap();
-    renderGeo();
-    if (geoView.map) setTimeout(() => geoView.map.invalidateSize(), 60);
-  }
+  if (name === "Geo") geoGame.onShow();
+  if (name === "Sw") { loadSwPlayer(); swGame.onShow(); }
 }
 $("tabMarcador").onclick = () => showTab("Marcador");
 $("tabPruebas").onclick = () => showTab("Pruebas");
 $("tabDuelo").onclick = () => showTab("Duelo");
 $("tabGeo").onclick = () => showTab("Geo");
+$("tabSw").onclick = () => showTab("Sw");
 $("refreshBtn").onclick = () => pull({ manual: true });
 $("publishBtn").onclick = publish;
 
@@ -1445,9 +1574,9 @@ if (!FIREBASE_DB_URL) {
 }
 render();
 pull();
-// con una pregunta o ronda geo abierta el sondeo se acelera
+// con una pregunta o ronda abierta el sondeo se acelera
 (function schedulePoll() {
-  const live = ["open", "revealed"].includes(quiz.status) || ["open", "revealed"].includes(geo.status);
+  const live = [quiz.status, geoGame.data.status, swGame.data.status].some(s => s === "open" || s === "revealed");
   setTimeout(async () => {
     await pull();
     schedulePoll();
