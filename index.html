@@ -225,12 +225,12 @@
   }
   .swframe { position: relative; }
   #swOverlay { position: absolute; inset: 0; display: none; }
-  #swOverlay.active { display: block; cursor: crosshair; }
-  #swMarker, #swLockLine { position: absolute; display: none; pointer-events: none; }
+  #swOverlay.show { display: block; }            /* visible (líneas) tanto al apostar como al revelar */
+  #swOverlay.active { cursor: crosshair; }        /* clicable solo mientras se apuesta */
+  #swMarker, #swLockLine { position: absolute; display: none; pointer-events: none; top: 0; bottom: 0; width: 3px; }
   #swMarker { background: #7fdcff; box-shadow: 0 0 9px #7fdcff; }
-  #swLockLine { background: #FFE81F; box-shadow: 0 0 9px #FFE81F; }
-  .swframe .vline { top: 0; bottom: 0; width: 2px; }
-  .swframe .hline { left: 0; right: 0; height: 2px; }
+  #swLockLine { background: #FFE81F; box-shadow: 0 0 10px #FFE81F; width: 4px; }
+  .swframe .vline { top: 0; bottom: 0; width: 3px; height: auto; }
   #swActivate {
     position: absolute; inset: 0; width: 100%; background: rgba(0,0,0,.55);
     border: none; color: #FFE81F; font-size: 1.1rem; font-weight: 800;
@@ -591,25 +591,26 @@ const GEO_BANK = [
    reproduce hasta playTo (el "purupupu" clava el punto). lock = % donde se clava en la franja. */
 /* Cada pantalla es un clip propio media/sw_NN.mp4 (índice = posición aquí); lock = % leído del
    fotograma clavado a 720p. El clip congela en su primer frame y al revelar reproduce hasta el final. */
+/* Siempre línea VERTICAL: lock = % horizontal del centro de la caja de escaneo (leído a 720p). */
 const SW_SCREENS = [
-  { planet: "ENDOR", color: "#8fd694", label: "Galaxia", axis: "v", lock: 19 },
-  { planet: "ENDOR", color: "#8fd694", label: "Planeta", axis: "v", lock: 45 },
-  { planet: "ENDOR", color: "#8fd694", label: "Superficie", axis: "h", lock: 47 },
-  { planet: "HOTH", color: "#9fd8ff", label: "Galaxia", axis: "v", lock: 30 },
-  { planet: "HOTH", color: "#9fd8ff", label: "Planeta", axis: "h", lock: 55 },
-  { planet: "HOTH", color: "#9fd8ff", label: "Superficie", axis: "v", lock: 37 },
-  { planet: "KAMINO", color: "#8fa8ff", label: "Galaxia", axis: "v", lock: 28 },
-  { planet: "KAMINO", color: "#8fa8ff", label: "Planeta", axis: "h", lock: 25 },
-  { planet: "KAMINO", color: "#8fa8ff", label: "Superficie", axis: "h", lock: 85 },
-  { planet: "NABOO", color: "#7fe0c3", label: "Galaxia", axis: "v", lock: 43 },
-  { planet: "NABOO", color: "#7fe0c3", label: "Planeta", axis: "v", lock: 22 },
-  { planet: "NABOO", color: "#7fe0c3", label: "Superficie", axis: "h", lock: 55 },
-  { planet: "TATOOINE", color: "#ffd27a", label: "Galaxia", axis: "v", lock: 40 },
-  { planet: "TATOOINE", color: "#ffd27a", label: "Planeta", axis: "v", lock: 13 },
-  { planet: "TATOOINE", color: "#ffd27a", label: "Superficie", axis: "h", lock: 55 },
-  { planet: "YAVIN 4", color: "#ffb36b", label: "Galaxia", axis: "v", lock: 51 },
-  { planet: "YAVIN 4", color: "#ffb36b", label: "Planeta", axis: "v", lock: 30 },
-  { planet: "YAVIN 4", color: "#ffb36b", label: "Superficie", axis: "h", lock: 72 },
+  { planet: "ENDOR", color: "#8fd694", label: "Galaxia", lock: 50 },
+  { planet: "ENDOR", color: "#8fd694", label: "Planeta", lock: 58 },
+  { planet: "ENDOR", color: "#8fd694", label: "Superficie", lock: 42 },
+  { planet: "HOTH", color: "#9fd8ff", label: "Galaxia", lock: 52 },
+  { planet: "HOTH", color: "#9fd8ff", label: "Planeta", lock: 50 },
+  { planet: "HOTH", color: "#9fd8ff", label: "Superficie", lock: 48 },
+  { planet: "KAMINO", color: "#8fa8ff", label: "Galaxia", lock: 48 },
+  { planet: "KAMINO", color: "#8fa8ff", label: "Planeta", lock: 50 },
+  { planet: "KAMINO", color: "#8fa8ff", label: "Superficie", lock: 46 },
+  { planet: "NABOO", color: "#7fe0c3", label: "Galaxia", lock: 48 },
+  { planet: "NABOO", color: "#7fe0c3", label: "Planeta", lock: 57 },
+  { planet: "NABOO", color: "#7fe0c3", label: "Superficie", lock: 32 },
+  { planet: "TATOOINE", color: "#ffd27a", label: "Galaxia", lock: 56 },
+  { planet: "TATOOINE", color: "#ffd27a", label: "Planeta", lock: 42 },
+  { planet: "TATOOINE", color: "#ffd27a", label: "Superficie", lock: 36 },
+  { planet: "YAVIN 4", color: "#ffb36b", label: "Galaxia", lock: 55 },
+  { planet: "YAVIN 4", color: "#ffb36b", label: "Planeta", lock: 48 },
+  { planet: "YAVIN 4", color: "#ffb36b", label: "Superficie", lock: 36 },
 ];
 const PARSECS_PER_UNIT = 37; // el mapa galáctico mide ~37.000 pársecs de punta a punta
 
@@ -1526,11 +1527,10 @@ async function swAction(value, method) {
   }
 }
 
-function swPlaceLine(el, axis, pct) {
-  el.className = axis === "v" ? "vline" : "hline";
+function swPlaceLine(el, pct) {
+  el.className = "vline"; // siempre vertical
   el.style.display = "block";
-  if (axis === "v") { el.style.left = pct + "%"; el.style.top = ""; }
-  else { el.style.top = pct + "%"; el.style.left = ""; }
+  el.style.left = pct + "%";
 }
 const swHideLine = (el) => { el.style.display = "none"; };
 
@@ -1551,12 +1551,10 @@ async function sendSw(n) {
 
 $("swOverlay").onclick = (e) => {
   if (sw.status !== "open") return;
-  const q = SW_SCREENS[sw.qIndex];
-  if (!q) return;
+  if (!SW_SCREENS[sw.qIndex]) return;
   const r = $("swOverlay").getBoundingClientRect();
-  const frac = q.axis === "v" ? (e.clientX - r.left) / r.width : (e.clientY - r.top) / r.height;
-  const n = Math.max(0, Math.min(100, Math.round(frac * 100)));
-  swPlaceLine($("swMarker"), q.axis, n);
+  const n = Math.max(0, Math.min(100, Math.round(((e.clientX - r.left) / r.width) * 100)));
+  swPlaceLine($("swMarker"), n);
   sendSw(n);
 };
 
@@ -1588,7 +1586,8 @@ function renderSw() {
   $("swIdle").style.display = sw.status === "idle" ? "block" : "none";
   $("swQuestion").style.display = showQ ? "block" : "none";
   $("swFinished").style.display = sw.status === "finished" ? "block" : "none";
-  if (!showQ || sw.status !== "open") $("swOverlay").classList.remove("active");
+  if (!showQ) { $("swOverlay").classList.remove("show", "active"); swHideLine($("swMarker")); swHideLine($("swLockLine")); }
+  else if (sw.status !== "open") $("swOverlay").classList.remove("active");
 
   const totalsEl = $("swTotals");
   const totals = Object.entries(sw.totals || {});
@@ -1607,19 +1606,20 @@ function renderSw() {
     syncSwVideo();
     swHideLine($("swLockLine"));
     const mine = swAnswers()[myPlayerId];
-    if (q && mine != null) swPlaceLine($("swMarker"), q.axis, mine);
+    if (q && mine != null) swPlaceLine($("swMarker"), mine);
     else swHideLine($("swMarker"));
-    if (q && sw.status === "revealed" && sw.lastResult) swPlaceLine($("swLockLine"), q.axis, sw.lastResult.lock);
+    // al revelar, dejar puesta tu línea (cian) y mostrar la real (dorada) sobre el frame del lock
+    if (q && sw.status === "revealed" && sw.lastResult) swPlaceLine($("swLockLine"), sw.lastResult.lock);
   }
 
   if (showQ) {
     const screenNo = (sw.qIndex % 3) + 1;
     $("swMeta").textContent = `${q.planet} · pantalla ${screenNo}/3 — ${q.label}`;
     const revealed = sw.status === "revealed";
-    $("swText").textContent = q.axis === "v"
-      ? "¿Dónde se clavará la línea VERTICAL? Toca el vídeo (izq ↔ der)"
-      : "¿Dónde se clavará la línea HORIZONTAL? Toca el vídeo (arriba ↕ abajo)";
+    $("swText").textContent = "¿Dónde se clavará la mira? Toca el vídeo (izquierda ↔ derecha)";
     $("swText").style.color = q.color || "";
+    // overlay visible siempre que haya pantalla (para ver las líneas al revelar); clicable solo en open
+    $("swOverlay").classList.add("show");
     $("swOverlay").classList.toggle("active", sw.status === "open");
 
     if (revealed && sw.lastResult) {
@@ -1938,12 +1938,26 @@ function syncSwVideo() {
   }
   if (sw.status === "revealed") {
     swMusic.pause(); // que se oiga el purupupu limpio
-    if (swVid.ended) { try { swVid.currentTime = 0.8; } catch (_) {} }
+    if (swVid.ended || swVid.currentTime > 0.5) { try { swVid.currentTime = 0; } catch (_) {} }
+    // al reproducir, congelar en el fotograma del lock (la caja), no en la transición al siguiente,
+    // para que la línea dorada caiga sobre la pantalla correcta
+    swVid.removeEventListener("timeupdate", swFreezeOnBox);
+    swVid.addEventListener("timeupdate", swFreezeOnBox);
     swVid.play().then(() => { $("swActivate").style.display = "none"; })
       .catch(() => { $("swActivate").style.display = "block"; });
   } else {
+    swVid.removeEventListener("timeupdate", swFreezeOnBox);
     swVid.pause();
     if (sw.status === "open" && swMusicOn) swMusic.play().catch(() => {});
+  }
+}
+
+function swFreezeOnBox() {
+  // pausar ~0.45s antes del corte: ahí está la caja de escaneo clavada
+  if (swVid.duration && swVid.currentTime >= swVid.duration - 0.45) {
+    swVid.pause();
+    swVid.removeEventListener("timeupdate", swFreezeOnBox);
+    if (swMusicOn) swMusic.play().catch(() => {});
   }
 }
 
