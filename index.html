@@ -214,7 +214,10 @@
     text-align: center; font-weight: 800; letter-spacing: 4px;
     color: #FFE81F; opacity: .85; font-size: .85rem; margin-bottom: 10px;
   }
-  .swvideo video { width: 100%; border-radius: 12px; display: block; background: #000; }
+  .swvideo video {
+    width: 100%; aspect-ratio: 16 / 9; object-fit: cover;
+    border-radius: 12px; display: block; background: #000;
+  }
   .swvideo .smallbtn { width: 100%; margin: 8px 0 10px; }
   .qcard.swq {
     background: #0b0e1a; border: 1px solid #222c4a;
@@ -430,7 +433,7 @@
     <div class="swsub">LA AMENAZA BOGU</div>
     <div class="swvideo">
       <div class="swframe">
-        <video id="swVid" playsinline preload="auto"></video>
+        <video id="swVid" playsinline webkit-playsinline preload="auto"></video>
         <div id="swOverlay"><div id="swMarker"></div><div id="swLockLine"></div></div>
         <button id="swActivate" style="display:none">▶ TOCA PARA ACTIVAR</button>
       </div>
@@ -1559,7 +1562,14 @@ $("swOverlay").onclick = (e) => {
 
 $("swActivate").onclick = () => {
   $("swActivate").style.display = "none";
-  swVid.play().catch(() => {});
+  // reproducir dentro del gesto desbloquea el elemento para el resto de la noche
+  const p = swVid.play();
+  if (p) p.then(() => {
+    if (sw.status !== "revealed") {
+      swVid.pause();
+      try { swVid.currentTime = 0.8; } catch (_) {}
+    }
+  }).catch(() => {});
 };
 
 function renderSwStatus() {
@@ -1913,16 +1923,24 @@ swVid.addEventListener("ended", () => { if (swMusicOn) swMusic.play().catch(() =
 
 function syncSwVideo() {
   const q = SW_SCREENS[sw.qIndex];
-  if (!q) { swVid.pause(); swVid.removeAttribute("src"); return; }
-  const src = "media/sw_" + String(sw.qIndex).padStart(2, "0") + ".mp4";
-  if (!swVid.getAttribute("src") || !swVid.getAttribute("src").endsWith(src)) {
-    swVid.setAttribute("src", src);
-    swVid.load(); // queda congelado en el primer frame de la pantalla
+  if (!q) { swVid.pause(); swVid.removeAttribute("src"); swVid.removeAttribute("poster"); return; }
+  const base = "media/sw_" + String(sw.qIndex).padStart(2, "0");
+  if (!swVid.getAttribute("src") || !swVid.getAttribute("src").endsWith(base + ".mp4")) {
+    // el póster se ve SIEMPRE, también en móviles que no cargan el vídeo hasta darle al play
+    swVid.setAttribute("poster", base + ".jpg");
+    swVid.setAttribute("src", base + ".mp4");
+    swVid.load();
+    // en escritorio, alinear el frame congelado con el póster (tras la media-negra del fundido)
+    swVid.addEventListener("loadeddata", function once() {
+      swVid.removeEventListener("loadeddata", once);
+      if (sw.status === "open" && swVid.paused) { try { swVid.currentTime = 0.8; } catch (_) {} }
+    });
   }
   if (sw.status === "revealed") {
     swMusic.pause(); // que se oiga el purupupu limpio
-    try { swVid.currentTime = 0; } catch (_) {}
-    swVid.play().catch(() => { $("swActivate").style.display = "block"; });
+    if (swVid.ended) { try { swVid.currentTime = 0.8; } catch (_) {} }
+    swVid.play().then(() => { $("swActivate").style.display = "none"; })
+      .catch(() => { $("swActivate").style.display = "block"; });
   } else {
     swVid.pause();
     if (sw.status === "open" && swMusicOn) swMusic.play().catch(() => {});
