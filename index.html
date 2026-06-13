@@ -440,7 +440,7 @@
   <!-- ===== STAR WARS: LA AMENAZA BOGU ===== -->
   <section id="viewSw" class="view">
     <div class="swtitle">STAR WARS</div>
-    <div class="swsub">LA AMENAZA BOGU</div>
+    <div class="swsub">LA AMENAZA BOGU · v5</div>
     <div class="swvideo">
       <div class="swframe">
         <img id="swFrame" alt="pantalla">
@@ -611,23 +611,23 @@ const GEO_BANK = [
    fotograma clavado a 720p. El clip congela en su primer frame y al revelar reproduce hasta el final. */
 /* Siempre línea VERTICAL: lock = % horizontal del centro de la caja de escaneo (leído a 720p). */
 const SW_SCREENS = [
-  { planet: "ENDOR", color: "#8fd694", label: "Galaxia", lock: 50 },
-  { planet: "ENDOR", color: "#8fd694", label: "Planeta", lock: 48 },
-  { planet: "ENDOR", color: "#8fd694", label: "Superficie", lock: 33 },
-  { planet: "HOTH", color: "#9fd8ff", label: "Galaxia", lock: 40 },
-  { planet: "HOTH", color: "#9fd8ff", label: "Planeta", lock: 37 },
-  { planet: "HOTH", color: "#9fd8ff", label: "Superficie", lock: 48 },
-  { planet: "KAMINO", color: "#8fa8ff", label: "Galaxia", lock: 42 },
-  { planet: "KAMINO", color: "#8fa8ff", label: "Planeta", lock: 50 },
+  { planet: "ENDOR", color: "#8fd694", label: "Galaxia", lock: 25 },
+  { planet: "ENDOR", color: "#8fd694", label: "Planeta", lock: 37 },
+  { planet: "ENDOR", color: "#8fd694", label: "Superficie", lock: 35 },
+  { planet: "HOTH", color: "#9fd8ff", label: "Galaxia", lock: 38 },
+  { planet: "HOTH", color: "#9fd8ff", label: "Planeta", lock: 36 },
+  { planet: "HOTH", color: "#9fd8ff", label: "Superficie", lock: 46 },
+  { planet: "KAMINO", color: "#8fa8ff", label: "Galaxia", lock: 38 },
+  { planet: "KAMINO", color: "#8fa8ff", label: "Planeta", lock: 41 },
   { planet: "KAMINO", color: "#8fa8ff", label: "Superficie", lock: 33 },
-  { planet: "NABOO", color: "#7fe0c3", label: "Galaxia", lock: 42 },
-  { planet: "NABOO", color: "#7fe0c3", label: "Planeta", lock: 47 },
-  { planet: "NABOO", color: "#7fe0c3", label: "Superficie", lock: 38 },
-  { planet: "TATOOINE", color: "#ffd27a", label: "Galaxia", lock: 50 },
-  { planet: "TATOOINE", color: "#ffd27a", label: "Planeta", lock: 36 },
-  { planet: "TATOOINE", color: "#ffd27a", label: "Superficie", lock: 25 },
+  { planet: "NABOO", color: "#7fe0c3", label: "Galaxia", lock: 38 },
+  { planet: "NABOO", color: "#7fe0c3", label: "Planeta", lock: 44 },
+  { planet: "NABOO", color: "#7fe0c3", label: "Superficie", lock: 40 },
+  { planet: "TATOOINE", color: "#ffd27a", label: "Galaxia", lock: 45 },
+  { planet: "TATOOINE", color: "#ffd27a", label: "Planeta", lock: 38 },
+  { planet: "TATOOINE", color: "#ffd27a", label: "Superficie", lock: 35 },
   { planet: "YAVIN 4", color: "#ffb36b", label: "Galaxia", lock: 45 },
-  { planet: "YAVIN 4", color: "#ffb36b", label: "Planeta", lock: 35 },
+  { planet: "YAVIN 4", color: "#ffb36b", label: "Planeta", lock: 40 },
   { planet: "YAVIN 4", color: "#ffb36b", label: "Superficie", lock: 27 },
 ];
 const PARSECS_PER_UNIT = 37; // el mapa galáctico mide ~37.000 pársecs de punta a punta
@@ -1951,10 +1951,10 @@ const swMusic = $("swMusic");
 function syncSwFrame() {
   const q = SW_SCREENS[sw.qIndex];
   if (!q) { $("swFrame").removeAttribute("src"); return; }
-  const img = "media/sw_" + String(sw.qIndex).padStart(2, "0") + ".jpg";
-  if (!$("swFrame").getAttribute("src") || !$("swFrame").getAttribute("src").endsWith(img)) {
-    $("swFrame").setAttribute("src", img);
-  }
+  const nn = String(sw.qIndex).padStart(2, "0");
+  // apuesta: pantalla con la mira horizontal puesta · revelado: el frame donde la mira ya se ha clavado
+  const img = (sw.status === "revealed" ? "media/swlock_" + nn + ".jpg" : "media/sw_" + nn + ".jpg") + "?v=5";
+  if ($("swFrame").getAttribute("src") !== img) $("swFrame").setAttribute("src", img);
 }
 
 // botón opcional del MC: reproduce el clip real en la pantalla grande (no afecta a la mecánica)
