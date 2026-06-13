@@ -223,19 +223,23 @@
     background: #0b0e1a; border: 1px solid #222c4a;
     text-transform: uppercase; letter-spacing: 1.5px;
   }
-  .swframe { position: relative; }
-  #swOverlay { position: absolute; inset: 0; display: none; }
-  #swOverlay.show { display: block; }            /* visible (líneas) tanto al apostar como al revelar */
-  #swOverlay.active { cursor: crosshair; }        /* clicable solo mientras se apuesta */
-  #swMarker, #swLockLine { position: absolute; display: none; pointer-events: none; top: 0; bottom: 0; width: 3px; }
-  #swMarker { background: #7fdcff; box-shadow: 0 0 9px #7fdcff; }
-  #swLockLine { background: #FFE81F; box-shadow: 0 0 10px #FFE81F; width: 4px; }
-  .swframe .vline { top: 0; bottom: 0; width: 3px; height: auto; }
-  #swActivate {
-    position: absolute; inset: 0; width: 100%; background: rgba(0,0,0,.55);
-    border: none; color: #FFE81F; font-size: 1.1rem; font-weight: 800;
-    letter-spacing: 2px; cursor: pointer; border-radius: 12px;
-  }
+  .swframe { position: relative; aspect-ratio: 16 / 9; background: #06080f; border-radius: 12px; overflow: hidden; }
+  #swFrame { width: 100%; height: 100%; object-fit: cover; display: block; }
+  #swOverlay { position: absolute; inset: 0; pointer-events: none; }
+  #swMarker, #swLockLine { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1.5px; display: none; }
+  #swMarker { background: #7fdcff; box-shadow: 0 0 10px #7fdcff, 0 0 4px #fff; z-index: 3; }
+  #swMarker::after { content: "TÚ"; position: absolute; top: 2px; left: 5px; color: #7fdcff; font-size: .6rem; font-weight: 800; }
+  #swLockLine { background: #FFE81F; width: 4px; margin-left: -2px; box-shadow: 0 0 14px #FFE81F, 0 0 5px #fff; z-index: 4; left: var(--swlock, 50%); }
+  #swLockLine.drop { animation: swdrop 1s cubic-bezier(.45,0,.25,1.25) both, swpulse 1.4s ease-in-out .9s 2; }
+  @keyframes swdrop { from { left: 50%; } to { left: var(--swlock, 50%); } }
+  @keyframes swpulse { 0%,100% { box-shadow: 0 0 14px #FFE81F; } 50% { box-shadow: 0 0 28px #FFE81F, 0 0 12px #fff; } }
+  #swTicks { position: absolute; left: 0; right: 0; bottom: 0; height: 0; }
+  #swTicks .tk { position: absolute; bottom: 0; transform: translateX(-50%); text-align: center; }
+  #swTicks .tk i { display: block; width: 2px; height: 14px; background: #fff; margin: 0 auto; opacity: .8; }
+  #swTicks .tk span { font-size: .58rem; color: #fff; background: rgba(0,0,0,.5); padding: 0 2px; border-radius: 3px; white-space: nowrap; }
+  #swRange { width: 100%; height: 38px; accent-color: #7fdcff; cursor: pointer; }
+  .franja { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+  .franja .smallbtn { width: 100%; padding: 13px; }
 
   /* ---------- precio justo ---------- */
   .precioimg {
@@ -433,21 +437,29 @@
     <div class="swsub">LA AMENAZA BOGU</div>
     <div class="swvideo">
       <div class="swframe">
-        <video id="swVid" playsinline webkit-playsinline preload="auto"></video>
-        <div id="swOverlay"><div id="swMarker"></div><div id="swLockLine"></div></div>
-        <button id="swActivate" style="display:none">▶ TOCA PARA ACTIVAR</button>
+        <img id="swFrame" alt="pantalla">
+        <div id="swOverlay">
+          <div id="swMarker"></div>
+          <div id="swLockLine"></div>
+          <div id="swTicks"></div>
+        </div>
       </div>
-      <button class="smallbtn gray" id="swMusicBtn">🎵 Música: OFF</button>
+      <video id="swVid" playsinline webkit-playsinline preload="none" style="display:none"></video>
     </div>
     <audio id="swMusic" src="media/battlefront.mp3" loop preload="none"></audio>
     <div class="geototals" id="swTotals" style="display:none"></div>
-    <div id="swIdle" class="empty">Hace mucho tiempo, en una galaxia muy, muy lejana…<br><br>Las loading screens del Battlefront, las de verdad: en cada pantalla (3 por planeta) el vídeo se congela y tú apuestas EN QUÉ PUNTO de la franja se clavará la mira. Cuando el MC le dé, suena el purupupu y se revela. El más fino se lleva el punto.<br><br>🎵 Dale a Música para la banda sonora mientras apostáis.</div>
+    <div id="swIdle" class="empty">Hace mucho tiempo, en una galaxia muy, muy lejana…<br><br>Las loading screens del Battlefront: en cada pantalla mueves tu <b style="color:#7fdcff">línea</b> con el slider y apuestas dónde se clavará la mira. Cuando el MC revele, cae la <b style="color:#FFE81F">línea real</b> y ves quién quedó más cerca.</div>
     <div id="swQuestion" style="display:none">
       <div class="qmeta" id="swMeta"></div>
       <div class="qcard swq" id="swText"></div>
+      <div class="franja" id="swFranja">
+        <input id="swRange" type="range" min="0" max="100" value="50" step="1">
+        <button id="swSend" class="smallbtn green">🎯 Fijar apuesta</button>
+      </div>
       <div class="geostatus" id="swStatus"></div>
       <div class="preciopvp" id="swLockShow" style="display:none"></div>
       <div class="georesults" id="swResults"></div>
+      <button class="smallbtn gray" id="swVideoBtn" style="display:none;width:100%;margin-top:8px">▶ Ver vídeo (pantalla grande)</button>
     </div>
     <div id="swFinished" style="display:none" class="finalbox">
       <div class="finalscore">⭐ La Amenaza Bogu</div>
@@ -1527,8 +1539,8 @@ async function swAction(value, method) {
   }
 }
 
-function swPlaceLine(el, pct) {
-  el.className = "vline"; // siempre vertical
+function swSetLine(el, pct, show) {
+  if (!show) { el.style.display = "none"; return; }
   el.style.display = "block";
   el.style.left = pct + "%";
 }
@@ -1543,32 +1555,27 @@ async function sendSw(n) {
   renderSwStatus();
   try {
     await swWrite(`/answers/${sw.qIndex}/${myPlayerId}`, n);
-    toast(`🎯 Apuesta: ${n}%`);
+    toast(`🎯 Fijada en el ${n}%`);
   } catch (e) {
-    toast("No se ha podido enviar — toca otra vez");
+    toast("No se ha podido enviar — dale otra vez");
   }
 }
 
-$("swOverlay").onclick = (e) => {
+// el slider mueve la línea cian en vivo
+$("swRange").addEventListener("input", () => {
   if (sw.status !== "open") return;
-  if (!SW_SCREENS[sw.qIndex]) return;
-  const r = $("swOverlay").getBoundingClientRect();
-  const n = Math.max(0, Math.min(100, Math.round(((e.clientX - r.left) / r.width) * 100)));
-  swPlaceLine($("swMarker"), n);
-  sendSw(n);
-};
+  swSetLine($("swMarker"), +$("swRange").value, true);
+});
+$("swSend").onclick = () => sendSw(Math.max(0, Math.min(100, parseInt($("swRange").value, 10) || 0)));
 
-$("swActivate").onclick = () => {
-  $("swActivate").style.display = "none";
-  // reproducir dentro del gesto desbloquea el elemento para el resto de la noche
-  const p = swVid.play();
-  if (p) p.then(() => {
-    if (sw.status !== "revealed") {
-      swVid.pause();
-      try { swVid.currentTime = 0.8; } catch (_) {}
-    }
-  }).catch(() => {});
-};
+// sonido del lock (purupupu) reutilizando la banda sonora un instante
+function swPlayLockSound() {
+  try {
+    const a = $("swMusic");
+    a.currentTime = 0;
+    a.play().then(() => { setTimeout(() => a.pause(), 1600); }).catch(() => {});
+  } catch (_) {}
+}
 
 function renderSwStatus() {
   const st = $("swStatus");
@@ -1576,8 +1583,16 @@ function renderSwStatus() {
   let mine = swAnswers()[myPlayerId];
   if (mine == null && swEcho && swEcho.q === sw.qIndex && Date.now() < swEcho.until) mine = swEcho.v;
   if (!myPlayerId) { st.className = "geostatus"; st.textContent = "Únete al marcador para poder jugar 🙋"; }
-  else if (mine != null) { st.className = "geostatus ok"; st.textContent = `🎯 Apuesta en el ${mine}% — toca otra vez para cambiarla`; }
-  else { st.className = "geostatus"; st.textContent = "Toca DENTRO del vídeo donde se clavará la línea 👆"; }
+  else if (mine != null) { st.className = "geostatus ok"; st.textContent = `🎯 Tu línea en el ${mine}% — muévela y vuelve a Fijar para cambiarla`; }
+  else { st.className = "geostatus"; st.textContent = "Mueve el slider y dale a Fijar 👇"; }
+}
+
+function renderSwTicks() {
+  const t = $("swTicks");
+  if (sw.status !== "revealed" || !sw.lastResult) { t.innerHTML = ""; return; }
+  t.innerHTML = (sw.lastResult.list || []).map(e =>
+    `<div class="tk" style="left:${e.guess}%"><span>${esc(e.name)}</span><i></i></div>`
+  ).join("");
 }
 
 function renderSw() {
@@ -1586,8 +1601,7 @@ function renderSw() {
   $("swIdle").style.display = sw.status === "idle" ? "block" : "none";
   $("swQuestion").style.display = showQ ? "block" : "none";
   $("swFinished").style.display = sw.status === "finished" ? "block" : "none";
-  if (!showQ) { $("swOverlay").classList.remove("show", "active"); swHideLine($("swMarker")); swHideLine($("swLockLine")); }
-  else if (sw.status !== "open") $("swOverlay").classList.remove("active");
+  if (!showQ) { swHideLine($("swMarker")); swHideLine($("swLockLine")); $("swTicks").innerHTML = ""; }
 
   const totalsEl = $("swTotals");
   const totals = Object.entries(sw.totals || {});
@@ -1599,28 +1613,41 @@ function renderSw() {
     }).join("");
   } else totalsEl.style.display = "none";
 
-  // sincronizar vídeo y líneas cuando cambia la ronda o el estado (también con la pestaña cerrada)
+  // al cambiar de ronda/estado: imagen del marco + colocar líneas (la dorada anima sola por CSS)
   const rk = sw.status + ":" + sw.qIndex;
-  if (swView.roundKey !== rk) {
+  const roundChanged = swView.roundKey !== rk;
+  if (roundChanged) {
     swView.roundKey = rk;
-    syncSwVideo();
-    swHideLine($("swLockLine"));
+    syncSwFrame();
     const mine = swAnswers()[myPlayerId];
-    if (q && mine != null) swPlaceLine($("swMarker"), mine);
-    else swHideLine($("swMarker"));
-    // al revelar, dejar puesta tu línea (cian) y mostrar la real (dorada) sobre el frame del lock
-    if (q && sw.status === "revealed" && sw.lastResult) swPlaceLine($("swLockLine"), sw.lastResult.lock);
+    if (q && sw.status === "open") {
+      // poner el slider y la línea cian donde el jugador tenía (o al centro)
+      const v = mine != null ? mine : 50;
+      $("swRange").value = v;
+      swSetLine($("swMarker"), v, mine != null);
+      swHideLine($("swLockLine"));
+      $("swTicks").innerHTML = "";
+    }
+    if (q && sw.status === "revealed" && sw.lastResult) {
+      // la cian se queda donde apostó el jugador; la dorada cae al lock con animación CSS
+      swSetLine($("swMarker"), mine ?? 50, mine != null);
+      const gold = $("swLockLine");
+      gold.style.setProperty("--swlock", sw.lastResult.lock + "%"); // posición final garantizada
+      gold.style.display = "block";
+      gold.classList.remove("drop"); void gold.offsetWidth; gold.classList.add("drop"); // re-disparar la caída
+      renderSwTicks();
+      swPlayLockSound();
+    }
   }
 
   if (showQ) {
     const screenNo = (sw.qIndex % 3) + 1;
     $("swMeta").textContent = `${q.planet} · pantalla ${screenNo}/3 — ${q.label}`;
     const revealed = sw.status === "revealed";
-    $("swText").textContent = "¿Dónde se clavará la mira? Toca el vídeo (izquierda ↔ derecha)";
+    $("swText").textContent = revealed ? "¡La mira se ha clavado! 🎯" : "¿Dónde se clavará la mira? Mueve tu línea ↔";
     $("swText").style.color = q.color || "";
-    // overlay visible siempre que haya pantalla (para ver las líneas al revelar); clicable solo en open
-    $("swOverlay").classList.add("show");
-    $("swOverlay").classList.toggle("active", sw.status === "open");
+    $("swFranja").style.display = revealed ? "none" : "flex";
+    $("swVideoBtn").style.display = (mcMode && revealed) ? "block" : "none";
 
     if (revealed && sw.lastResult) {
       $("swLockShow").style.display = "block";
@@ -1669,14 +1696,14 @@ function renderSwMc() {
   };
 
   if (sw.status === "idle") {
-    info.textContent = `${SW_SCREENS.length} pantallas (6 planetas × 3). Si el vídeo no arranca en un móvil al revelar, un toque al play y listo.`;
+    info.textContent = `${SW_SCREENS.length} pantallas (6 planetas × 3). Cada jugador mueve su línea con el slider; al revelar cae la mira real.`;
     addBtn("▶ Empezar la Amenaza", "green", () =>
       swAction({ status: "open", qIndex: 0, answers: null, totals: null, lastResult: null }, "PUT"));
   }
   if (sw.status === "open") {
     const ans = swAnswers();
     const con = state.players.filter(p => ans[p.id] != null).length;
-    info.textContent = `${con}/${state.players.length} han apostado.`;
+    info.textContent = `${con}/${state.players.length} han fijado su línea.`;
     addBtn("👁 PURUPUPU (revelar)", "", swReveal);
   }
   if (sw.status === "revealed") {
@@ -1908,54 +1935,28 @@ async function precioReveal() {
   await precioAction({ status: "revealed", totals, lastResult: { n: scored.length, price: q.price, list: scored } }, "PATCH");
 }
 
-/* vídeo nativo: cada pantalla es su clip; congelado en el primer frame, al revelar se reproduce entero */
+/* La mecánica usa la IMAGEN estática (póster). El <video> queda solo para el botón opcional del MC. */
 const swVid = $("swVid");
 const swMusic = $("swMusic");
-let swMusicOn = false;
 
-$("swMusicBtn").onclick = () => {
-  swMusicOn = !swMusicOn;
-  $("swMusicBtn").textContent = swMusicOn ? "🎵 Música: ON" : "🎵 Música: OFF";
-  if (swMusicOn && swVid.paused) swMusic.play().catch(() => {});
-  if (!swMusicOn) swMusic.pause();
-};
-swVid.addEventListener("ended", () => { if (swMusicOn) swMusic.play().catch(() => {}); });
-
-function syncSwVideo() {
+function syncSwFrame() {
   const q = SW_SCREENS[sw.qIndex];
-  if (!q) { swVid.pause(); swVid.removeAttribute("src"); swVid.removeAttribute("poster"); return; }
-  const base = "media/sw_" + String(sw.qIndex).padStart(2, "0");
-  const newClip = !swVid.getAttribute("src") || !swVid.getAttribute("src").endsWith(base + ".mp4");
-  if (newClip) {
-    // el póster (frame de apuesta) se ve al instante en todos los móviles; el vídeo queda en t=0
-    swVid.setAttribute("poster", base + ".jpg");
-    swVid.setAttribute("src", base + ".mp4");
-    swVid.load();
-  }
-  if (sw.status === "revealed") {
-    swMusic.pause(); // que se oiga el purupupu limpio
-    swVid.removeEventListener("timeupdate", swFreezeOnBox);
-    swVid.addEventListener("timeupdate", swFreezeOnBox);
-    // reproducir desde el inicio del clip (sin saltos hacia atrás = sin tirones); congela en la caja
-    const go = () => swVid.play().then(() => { $("swActivate").style.display = "none"; })
-      .catch(() => { $("swActivate").style.display = "block"; });
-    if (swVid.ended) { try { swVid.currentTime = 0; } catch (_) {} }
-    go();
-  } else {
-    swVid.removeEventListener("timeupdate", swFreezeOnBox);
-    swVid.pause();
-    if (sw.status === "open" && swMusicOn) swMusic.play().catch(() => {});
+  if (!q) { $("swFrame").removeAttribute("src"); return; }
+  const img = "media/sw_" + String(sw.qIndex).padStart(2, "0") + ".jpg";
+  if (!$("swFrame").getAttribute("src") || !$("swFrame").getAttribute("src").endsWith(img)) {
+    $("swFrame").setAttribute("src", img);
   }
 }
 
-function swFreezeOnBox() {
-  // pausar ~0.55s antes del corte: ahí está la caja de escaneo clavada (la línea dorada cae sobre ella)
-  if (swVid.duration && swVid.currentTime >= swVid.duration - 0.55) {
-    swVid.pause();
-    swVid.removeEventListener("timeupdate", swFreezeOnBox);
-    if (swMusicOn) swMusic.play().catch(() => {});
-  }
-}
+// botón opcional del MC: reproduce el clip real en la pantalla grande (no afecta a la mecánica)
+$("swVideoBtn").onclick = () => {
+  const base = "media/sw_" + String(sw.qIndex).padStart(2, "0") + ".mp4";
+  swVid.style.display = "block";
+  if (!swVid.getAttribute("src") || !swVid.getAttribute("src").endsWith(base)) { swVid.setAttribute("src", base); swVid.load(); }
+  try { swVid.currentTime = 0; } catch (_) {}
+  swVid.play().catch(() => {});
+};
+swVid.addEventListener("ended", () => { swVid.style.display = "none"; });
 
 /* ===================== modo MC ===================== */
 function renderMc() {
@@ -2117,7 +2118,7 @@ function showTab(name) {
     $("view" + t).classList.toggle("active", name === t);
   });
   if (name === "Geo") geoGame.onShow();
-  if (name === "Sw") { renderSw(); syncSwVideo(); }
+  if (name === "Sw") { syncSwFrame(); renderSw(); }
   if (name === "Precio") renderPrecio();
 }
 $("tabMarcador").onclick = () => showTab("Marcador");
